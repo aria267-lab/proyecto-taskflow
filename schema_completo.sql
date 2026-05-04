@@ -374,3 +374,14 @@ INSERT INTO user_preferences (profile_id) VALUES
   ('11111111-0000-0000-0000-000000000003'),
   ('11111111-0000-0000-0000-000000000004')
 ON CONFLICT (profile_id) DO NOTHING;
+
+
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS cedula VARCHAR(10);
+
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_cedula_check
+    CHECK (cedula ~ '^[0-9]{6,10}$');
+
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_cedula_unique UNIQUE (cedula);
