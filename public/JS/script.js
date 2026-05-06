@@ -1052,15 +1052,128 @@ function sendChat(){
 /* ══════════════════════════════════════════════
    BÚSQUEDA
 ══════════════════════════════════════════════ */
-document.getElementById('s-input').addEventListener('input',e=>{
-  const q=e.target.value.trim().toLowerCase();if(!q)return;
-  const t=ST.tasks.find(x=>x.title.toLowerCase().includes(q));
-  const p=ST.projs.find(x=>x.name.toLowerCase().includes(q));
-  if(t)toast('Tarea: "'+t.title+'"','i');
-  else if(p)toast('Proyecto: "'+p.name+'"','i');
+// ════════════════════════════════════════════
+// BÚSQUEDA FUNCIONAL
+// ════════════════════════════════════════════
+document.getElementById('s-input').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  const dropdown = document.getElementById('search-dropdown');
+  const results = document.getElementById('search-results');
+
+  if(!q) {
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  // Buscar en proyectos y tareas
+  const proyectos = (ST.projs || []).filter(p => p.name.toLowerCase().includes(q)).slice(0, 5);
+  const tareas = (ST.tasks || []).filter(t => t.title.toLowerCase().includes(q)).slice(0, 5);
+
+  const html = [];
+
+  if(proyectos.length > 0) {
+    html.push('<div style="padding:8px 0"><div style="padding:8px 16px;font-size:.7rem;color:var(--t2);font-weight:700;text-transform:uppercase">Proyectos</div>');
+    proyectos.forEach(p => {
+      html.push(`<div style="padding:8px 16px;cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'" onclick="nav(document.querySelector('[data-page=projects]'),'projects'); document.getElementById('s-input').value=''; document.getElementById('search-dropdown').style.display='none'">
+        <div style="font-size:.8rem;font-weight:600">📁 ${p.name}</div>
+      </div>`);
+    });
+    html.push('</div>');
+  }
+
+  if(tareas.length > 0) {
+    html.push('<div style="padding:8px 0"><div style="padding:8px 16px;font-size:.7rem;color:var(--t2);font-weight:700;text-transform:uppercase">Tareas</div>');
+    tareas.forEach(t => {
+      html.push(`<div style="padding:8px 16px;cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'" onclick="nav(document.querySelector('[data-page=kanban]'),'kanban'); document.getElementById('s-input').value=''; document.getElementById('search-dropdown').style.display='none'">
+        <div style="font-size:.8rem;font-weight:600">☰ ${t.title}</div>
+        <div style="font-size:.65rem;color:var(--t2);margin-top:2px">Prioridad: ${t.priority || 'Media'}</div>
+      </div>`);
+    });
+    html.push('</div>');
+  }
+
+  if(!proyectos.length && !tareas.length) {
+    html.push('<div style="padding:16px;text-align:center;color:var(--t2);font-size:.8rem">No se encontraron resultados</div>');
+  }
+
+  results.innerHTML = html.join('');
+  dropdown.style.display = 'block';
 });
 
-document.getElementById('tb-notif').addEventListener('click',()=>toast('Notificaciones próximamente','i'));
+// Cerrar búsqueda al hacer clic afuera
+document.addEventListener('click', (e) => {
+  const searchWrap = document.querySelector('.search-wrap');
+  const dropdown = document.getElementById('search-dropdown');
+  if(!searchWrap.contains(e.target)) {
+    dropdown.style.display = 'none';
+  }
+});
+
+// ════════════════════════════════════════════
+// NOTIFICACIONES FUNCIONALES
+// ════════════════════════════════════════════
+const NOTIF = {
+  list: [
+    {id:1, tipo:'tarea', titulo:'Tarea "Diseño de API REST" vence mañana', icon:'📌', leida:false, fecha:'hace 15 min'},
+    {id:2, tipo:'asignacion', titulo:'Carlos te asignó "Testing módulo auth"', icon:'👤', leida:false, fecha:'hace 1 hora'},
+    {id:3, tipo:'proyecto', titulo:'"TaskFlow MVP" alcanzó 68% de avance', icon:'📈', leida:false, fecha:'hace 3 horas'},
+    {id:4, tipo:'tarea', titulo:'Completaste 5 tareas esta semana', icon:'✓', leida:true, fecha:'hace 1 día'}
+  ]
+};
+
+function renderNotif() {
+  const badge = document.getElementById('notif-badge');
+  const list = document.getElementById('notif-list');
+  const noLeidas = NOTIF.list.filter(n => !n.leida).length;
+
+  badge.textContent = noLeidas;
+  badge.style.display = noLeidas > 0 ? 'flex' : 'none';
+
+  list.innerHTML = NOTIF.list.map(n => `
+    <div class="notif-item" style="padding:12px 16px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .2s;${!n.leida ? 'background:rgba(36,98,233,.04)' : ''}" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='${!n.leida ? 'rgba(36,98,233,.04)' : 'transparent'}'" onclick="markNotifRead(${n.id})">
+      <div style="display:flex;gap:12px">
+        <div style="font-size:1.2rem">${n.icon}</div>
+        <div style="flex:1">
+          <div style="font-size:.8rem;color:var(--t0);line-height:1.4;${n.leida ? 'opacity:.6' : ''}">${n.titulo}</div>
+          <div style="font-size:.65rem;color:var(--t2);margin-top:4px">${n.fecha}</div>
+        </div>
+        ${!n.leida ? '<div style="width:8px;height:8px;background:var(--blue);border-radius:50%;flex-shrink:0;margin-top:6px"></div>' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function markNotifRead(id) {
+  const notif = NOTIF.list.find(n => n.id === id);
+  if(notif) notif.leida = true;
+  renderNotif();
+}
+
+function markAllNotifRead() {
+  NOTIF.list.forEach(n => n.leida = true);
+  renderNotif();
+}
+
+// Toggle dropdown notificaciones
+document.getElementById('tb-notif').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dropdown = document.getElementById('notif-dropdown');
+  const isOpen = dropdown.style.display !== 'none';
+  dropdown.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen) renderNotif();
+});
+
+// Cerrar dropdown al hacer clic afuera
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('notif-dropdown');
+  const notifBtn = document.getElementById('tb-notif');
+  if(!notifBtn.contains(e.target) && !dropdown.contains(e.target)) {
+    dropdown.style.display = 'none';
+  }
+});
+
+// Renderizar notificaciones al iniciar
+renderNotif();
 
 /* ══════════════════════════════════════════════
    INICIALIZACIÓN
