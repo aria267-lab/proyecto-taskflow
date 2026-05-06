@@ -392,7 +392,7 @@ app.get('/api/dashboard/:profile_id', async (req, res) => {
 });
 
 /* DASHBOARD - Horas por día de la semana (productividad semanal) */
-app.get('/api/dashboard/:profile_id/weekly-hours', async (req, res) => {
+app.get('/api/weekly-hours/:profile_id', async (req, res) => {
   const pid = req.params.profile_id;
   try {
     const { rows } = await pool.query(`

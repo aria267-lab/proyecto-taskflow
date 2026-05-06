@@ -577,6 +577,7 @@ function nav(el,pageId){
   if(pageId==='timer')      renderTmrLog();
   if(pageId==='profile')    renderProfile();
   if(pageId==='project-detail') renderProjDetail();
+  if(pageId==='task-detail') renderTaskDetail();
 }
 
 /* ══════════════════════════════════════════════
@@ -786,11 +787,33 @@ function initKanbanDrop(){
   });
 }
 
+function renderTaskDetail(){
+  const task = ST.tasks.find(t => t.id === ST.currentTaskId);
+  if(!task) {
+    console.warn('Task not found:', ST.currentTaskId);
+    return;
+  }
+
+  // Actualizar elementos de detalle
+  const nameEl = document.getElementById('td-name');
+  if(nameEl) nameEl.value = task.title || '';
+
+  const descEl = document.getElementById('td-desc');
+  if(descEl) descEl.value = task.description || '';
+
+  const prioEl = document.getElementById('td-prio');
+  if(prioEl) prioEl.value = task.priority || 'Media';
+
+  const statusEl = document.getElementById('td-status');
+  if(statusEl) {
+    const statusMap = {todo: 'Por hacer', progress: 'En progreso', review: 'En revisión', done: 'Completada'};
+    statusEl.value = statusMap[task.column_status] || task.column_status || 'Por hacer';
+  }
+}
+
 function openTaskDetail(id){
-  editTask(id);
-  setTimeout(() => {
-    nav(document.querySelector('[data-page=task-detail]'), 'task-detail');
-  }, 100);
+  ST.currentTaskId = id;
+  nav(document.querySelector('[data-page=task-detail]'), 'task-detail');
 }
 
 function editTask(id){
@@ -933,7 +956,7 @@ async function renderDash(){
       const weeklyChart = document.getElementById('d-weekly-chart');
       if(weeklyChart) {
         try {
-          const weekData = await API.get('/api/dashboard/'+uid4+'/weekly-hours');
+          const weekData = await API.get('/api/weekly-hours/'+uid4);
           const maxHours = Math.max(...weekData.map(d => d.hours), 1);
           weeklyChart.innerHTML = weekData.map(d => {
             const height = maxHours > 0 ? (d.hours / maxHours) * 100 : 0;
@@ -947,17 +970,17 @@ async function renderDash(){
           }).join('');
         } catch(ex) {
           console.warn('weekly hours error', ex);
-          weeklyChart.innerHTML = '<div style="color:var(--t2)">Error cargando datos</div>';
+          weeklyChart.innerHTML = '<div style="color:var(--t2);text-align:center;padding:12px;font-size:.78rem">Sin datos</div>';
         }
       }
 
-      // ⭐ RENDERIZAR NOTIFICACIONES
+      // ⭐ RENDERIZAR NOTIFICACIONES (SIN CLICKEABLE)
       const notifList = document.getElementById('d-notif-list');
       if(notifList && d.recent_tasks) {
         const notifs = d.recent_tasks.slice(0, 3).map(t => {
           const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
           const color = colors[t.priority] || 'var(--s2)';
-          return `<div class="notif-i" onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
+          return `<div class="notif-i">
             <div class="notif-dot" style="background:${color}"></div>
             <div><div class="notif-b"><strong>${t.title}</strong></div>
             <div class="notif-t">${t.project_name || ''}</div></div>
