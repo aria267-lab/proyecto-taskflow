@@ -186,13 +186,22 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email        ON profiles(email);
 CREATE OR REPLACE VIEW v_kanban_tasks AS
 SELECT
   t.id, t.project_id, t.title, t.description,
+<<<<<<< HEAD
   t.column_status, t.priority, t.progress,
+=======
+  t.column_status AS col, t.priority, t.progress,
+>>>>>>> 60101becd975bbecfd68920d156d8c7b9898c7e5
   t.due_date, t.due_date_iso, t.assigned_to, t.created_by,
   t.updated_at, t.created_at,
   p.name        AS project_name,
   p.color       AS project_color,
+<<<<<<< HEAD
   pf.full_name  AS assigned_name,
   pf.initials   AS assigned_initials
+=======
+  pf.full_name  AS assignee_name,
+  pf.initials   AS assignee_initials
+>>>>>>> 60101becd975bbecfd68920d156d8c7b9898c7e5
 FROM tasks t
 JOIN projects   p  ON p.id = t.project_id
 LEFT JOIN profiles pf ON pf.id = t.assigned_to;
@@ -374,3 +383,17 @@ INSERT INTO user_preferences (profile_id) VALUES
   ('11111111-0000-0000-0000-000000000003'),
   ('11111111-0000-0000-0000-000000000004')
 ON CONFLICT (profile_id) DO NOTHING;
+<<<<<<< HEAD
+=======
+
+
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS cedula VARCHAR(10);
+
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_cedula_check
+    CHECK (cedula ~ '^[0-9]{6,10}$');
+
+ALTER TABLE profiles
+ADD CONSTRAINT profiles_cedula_unique UNIQUE (cedula);
+>>>>>>> 60101becd975bbecfd68920d156d8c7b9898c7e5
