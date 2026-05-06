@@ -998,9 +998,76 @@ async function renderRep(period,btn){
 /* ══════════════════════════════════════════════
    PERFIL
 ══════════════════════════════════════════════ */
-function renderProfile(){
-  const pc=document.getElementById('p-pcount');if(pc)pc.textContent=ST.projs.filter(p=>p.status==='Activo').length;
-  const tc=document.getElementById('p-tcount');if(tc)tc.textContent=ST.tasks.filter(t=>t.column_status!=='done').length;
+async function renderProfile(){
+  // Actualizar datos del usuario
+  if(ST.user && ST.user.id) {
+    document.getElementById('prof-name').textContent = ST.user.full_name || 'Usuario';
+    document.getElementById('prof-email').textContent = ST.user.email || '';
+    document.getElementById('prof-role').textContent = ST.user.role || 'Empleado';
+    document.getElementById('prof-av').textContent = ST.user.initials || 'U';
+    document.getElementById('pf-pname').value = ST.user.full_name || '';
+    document.getElementById('pf-pemail').value = ST.user.email || '';
+    document.getElementById('pf-prole').value = ST.user.role || 'Empleado';
+  }
+
+  // Actualizar contadores
+  const pc=document.getElementById('p-pcount');
+  if(pc) pc.textContent = ST.projs.filter(p=>p.status==='Activo').length;
+  const tc=document.getElementById('p-tcount');
+  if(tc) tc.textContent = ST.tasks.filter(t=>t.column_status!=='done').length;
+
+  // Cargar actividad reciente
+  await loadActivityLog();
+}
+
+async function loadActivityLog(){
+  if(!ST.user || !ST.user.id) return;
+
+  try {
+    const logs = await API.get('/api/activity-log?limit=10&user_id='+ST.user.id);
+    const container = document.getElementById('activity-log');
+
+    if(!logs || logs.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--t2);padding:20px;font-size:0.85rem">No hay actividad reciente</div>';
+      return;
+    }
+
+    // Mapeo de iconos y colores por tipo de evento
+    const eventConfig = {
+      'task_created': { icon: '✚', color: 'blue-l', label: 'Creó tarea' },
+      'task_completed': { icon: '✓', color: 'grn-l', label: 'Completó tarea' },
+      'task_updated': { icon: '✎', color: 'amb-l', label: 'Actualizó tarea' },
+      'task_moved': { icon: '→', color: 'teal-l', label: 'Movió tarea' },
+      'task_commented': { icon: '💬', color: 'amb-l', label: 'Comentó en tarea' },
+      'project_created': { icon: '📁', color: 's2', label: 'Creó proyecto' },
+      'time_logged': { icon: '⏱', color: 'blue-l', label: 'Registró tiempo' },
+      'member_added': { icon: '👤', color: 'teal-l', label: 'Agregó miembro' }
+    };
+
+    container.innerHTML = logs.map(log => {
+      const config = eventConfig[log.event] || { icon: '•', color: 's2', label: log.event };
+      const taskName = log.payload?.task_name || log.payload?.title || '';
+      const projectName = log.payload?.project_name || log.payload?.project || '';
+      const entityName = taskName || projectName || 'elemento';
+
+      const date = new Date(log.created_at);
+      const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const dateStr = date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+
+      return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)">
+          <div style="width:26px;height:26px;background:var(--${config.color});border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">${config.icon}</div>
+          <div>
+            <div style="font-size:.77rem;font-weight:500">${config.label} <strong>"${entityName}"</strong></div>
+            <div style="font-size:.63rem;color:var(--t2);margin-top:1px">${dateStr} ${timeStr}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[loadActivityLog]', e.message);
+    document.getElementById('activity-log').innerHTML = '<div style="text-align:center;color:var(--t2);padding:20px;font-size:0.85rem">Error cargando actividad</div>';
+  }
 }
 
 document.querySelector('#pg-profile .btn.btn-p.btn-sm')?.addEventListener('click', async ()=>{

@@ -13,6 +13,7 @@ const { verifyToken, authorize } = require('./middlewares/auth');
 const authRouter = require('./routes/auth');
 const prefRouter = require('./routes/preferencias');
 const chatRouter = require('./routes/mensajes');
+const activityRouter = require('./routes/activity');
 
 const app = express();
 app.use(cors());
@@ -30,6 +31,9 @@ app.use('/api/preferencias', prefRouter);
 
 /* MENSAJES CHAT — protegidos con JWT */
 app.use('/api/mensajes', chatRouter);
+
+/* ACTIVITY LOG — protegido con JWT */
+app.use('/api/activity-log', activityRouter);
 
 /* PERFILES */
 app.get('/api/perfiles', async (req, res) => {
