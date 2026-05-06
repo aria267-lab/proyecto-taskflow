@@ -786,6 +786,13 @@ function initKanbanDrop(){
   });
 }
 
+function openTaskDetail(id){
+  editTask(id);
+  setTimeout(() => {
+    nav(document.querySelector('[data-page=task-detail]'), 'task-detail');
+  }, 100);
+}
+
 function editTask(id){
   const t=ST.tasks.find(x=>x.id===id);if(!t)return;
   document.getElementById('mt-name').value=t.title;
@@ -922,10 +929,48 @@ async function renderDash(){
         prodSub.innerHTML = `<span class="trend ${trendClass}">${arrow} ${Math.abs(d.productivity_change)}%</span> vs semana anterior`;
       }
 
+      // ⭐ RENDERIZAR GRÁFICO DE PRODUCTIVIDAD SEMANAL CON DATOS REALES
+      const weeklyChart = document.getElementById('d-weekly-chart');
+      if(weeklyChart) {
+        try {
+          const weekData = await API.get('/api/dashboard/'+uid4+'/weekly-hours');
+          const maxHours = Math.max(...weekData.map(d => d.hours), 1);
+          weeklyChart.innerHTML = weekData.map(d => {
+            const height = maxHours > 0 ? (d.hours / maxHours) * 100 : 0;
+            const color = d.hours === 0 ? 'var(--s2)' : 'var(--blue)';
+            const valColor = d.hours === 0 ? 'var(--t2)' : 'var(--t1)';
+            return `<div class="bch-item">
+              <span class="bch-val" style="color:${valColor}">${d.hours}h</span>
+              <div class="bch-bar" style="height:${height}%;background:${color}"></div>
+              <span class="bch-lbl">${d.day}</span>
+            </div>`;
+          }).join('');
+        } catch(ex) {
+          console.warn('weekly hours error', ex);
+          weeklyChart.innerHTML = '<div style="color:var(--t2)">Error cargando datos</div>';
+        }
+      }
+
+      // ⭐ RENDERIZAR NOTIFICACIONES
+      const notifList = document.getElementById('d-notif-list');
+      if(notifList && d.recent_tasks) {
+        const notifs = d.recent_tasks.slice(0, 3).map(t => {
+          const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
+          const color = colors[t.priority] || 'var(--s2)';
+          return `<div class="notif-i" onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
+            <div class="notif-dot" style="background:${color}"></div>
+            <div><div class="notif-b"><strong>${t.title}</strong></div>
+            <div class="notif-t">${t.project_name || ''}</div></div>
+          </div>`;
+        }).join('');
+        notifList.innerHTML = notifs || '<div style="text-align:center;color:var(--t2);padding:12px;font-size:.78rem">Sin notificaciones</div>';
+      }
+
+      // ⭐ TAREAS PENDIENTES CON CLICKEABLE
       const tb=document.getElementById('d-tbody');
       if(tb && d.recent_tasks){
         tb.innerHTML=d.recent_tasks.map(t=>`
-          <tr>
+          <tr onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
             <td class="td-p">${t.title}</td>
             <td style="font-size:.75rem">${t.project_name||''}</td>
             <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>

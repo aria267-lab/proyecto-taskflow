@@ -230,21 +230,13 @@
         <div class="g2 mb20">
           <div class="card anim">
             <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Productividad semanal</div><span class="tag t-blue">Esta semana</span></div>
-            <div class="bch" style="height:88px;align-items:flex-end">
-              <div class="bch-item"><span class="bch-val" style="color:var(--t2)">2h</span><div class="bch-bar" style="height:22%;background:var(--s2)"></div><span class="bch-lbl">Lun</span></div>
-              <div class="bch-item"><span class="bch-val">6h</span><div class="bch-bar" style="height:68%;background:var(--blue)"></div><span class="bch-lbl">Mar</span></div>
-              <div class="bch-item"><span class="bch-val">5h</span><div class="bch-bar" style="height:54%;background:var(--blue)"></div><span class="bch-lbl">Mié</span></div>
-              <div class="bch-item"><span class="bch-val">8h</span><div class="bch-bar" style="height:96%;background:var(--blue)"></div><span class="bch-lbl">Jue</span></div>
-              <div class="bch-item"><span class="bch-val">6h</span><div class="bch-bar" style="height:70%;background:var(--blue)"></div><span class="bch-lbl">Vie</span></div>
-              <div class="bch-item"><span class="bch-val">3h</span><div class="bch-bar" style="height:34%;background:#BFDBFE"></div><span class="bch-lbl">Sáb</span></div>
-              <div class="bch-item"><span class="bch-val" style="color:var(--t2)">—</span><div class="bch-bar" style="height:3%;background:var(--s2)"></div><span class="bch-lbl">Dom</span></div>
+            <div class="bch" id="d-weekly-chart" style="height:88px;align-items:flex-end">
+              <div style="text-align:center;color:var(--t2);width:100%">Cargando datos...</div>
             </div>
           </div>
           <div class="card anim">
             <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Notificaciones</div><button class="btn btn-g btn-sm">Ver todas</button></div>
-            <div class="notif-i"><div class="notif-dot" style="background:var(--ros)"></div><div><div class="notif-b">Tarea <strong>Diseño de API REST</strong> vence mañana</div><div class="notif-t">hace 15 min</div></div></div>
-            <div class="notif-i"><div class="notif-dot" style="background:var(--blue)"></div><div><div class="notif-b">Carlos te asignó <strong>Testing módulo auth</strong></div><div class="notif-t">hace 1 hora</div></div></div>
-            <div class="notif-i"><div class="notif-dot" style="background:var(--amb)"></div><div><div class="notif-b"><strong>TaskFlow MVP</strong> alcanzó 68% de avance</div><div class="notif-t">hace 3 horas</div></div></div>
+            <div id="d-notif-list"></div>
           </div>
         </div>
         <div class="card anim">

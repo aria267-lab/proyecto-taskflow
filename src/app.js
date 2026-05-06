@@ -391,6 +391,44 @@ app.get('/api/dashboard/:profile_id', async (req, res) => {
   }
 });
 
+/* DASHBOARD - Horas por día de la semana (productividad semanal) */
+app.get('/api/dashboard/:profile_id/weekly-hours', async (req, res) => {
+  const pid = req.params.profile_id;
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        TO_CHAR(DATE(started_at AT TIME ZONE 'UTC'), 'Dy') AS day_short,
+        EXTRACT(DOW FROM started_at AT TIME ZONE 'UTC')::INTEGER AS day_order,
+        COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds
+      FROM time_logs
+      WHERE profile_id=$1
+        AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC') = DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')
+      GROUP BY DATE(started_at AT TIME ZONE 'UTC'), day_order
+      ORDER BY day_order ASC
+    `, [pid]);
+
+    // Mapear respuesta con nombres de días en español
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const weekData = [];
+    for (let i = 0; i < 7; i++) {
+      const dayData = rows.find(r => r.day_order === i);
+      const seconds = dayData?.seconds || 0;
+      const hours = Math.floor(seconds / 3600);
+      weekData.push({
+        day: dayNames[i],
+        day_order: i,
+        hours: hours,
+        seconds: seconds
+      });
+    }
+
+    res.json(weekData);
+  } catch (e) {
+    console.error('[/api/dashboard/weekly-hours] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 /* REPORTES */
 app.get('/api/reportes/usuarios', async (req, res) => {
   try { const { rows } = await pool.query('SELECT * FROM v_user_task_summary ORDER BY total_tasks DESC'); res.json(rows); }
