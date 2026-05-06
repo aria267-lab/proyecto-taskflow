@@ -347,25 +347,43 @@ app.patch('/api/notificaciones/:id/leer', verifyToken, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/* DASHBOARD — Eduardo Sáb 3 may: métricas desde API en vez de variables locales */
+/* DASHBOARD — Eduardo Sáb 3 may: métricas desde API en vez de variables locales + productividad */
 app.get('/api/dashboard/:profile_id', async (req, res) => {
   const pid = req.params.profile_id;
   try {
-    const [ap, pt, hp, tm, rt, todayH] = await Promise.all([
+    const [ap, pt, hp, tm, rt, todayH, thisWeekH, lastWeekH] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM projects p JOIN project_members pm ON pm.project_id=p.id WHERE pm.profile_id=$1 AND p.status='Activo'`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND priority='Alta' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT tl.*,t.title AS task_title,p.name AS project_name,EXTRACT(EPOCH FROM (NOW()-tl.started_at))::INTEGER AS elapsed_seconds FROM time_logs tl JOIN tasks t ON t.id=tl.task_id JOIN projects p ON p.id=tl.project_id WHERE tl.profile_id=$1 AND tl.is_active=true LIMIT 1`, [pid]),
       pool.query(`SELECT * FROM v_kanban_tasks WHERE assigned_to=$1 AND column_status!='done' ORDER BY due_date_iso ASC NULLS LAST LIMIT 6`, [pid]),
-      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE duration_seconds END),0)::INTEGER AS seconds_today FROM time_logs WHERE profile_id=$1 AND DATE(started_at AT TIME ZONE 'America/Caracas')=CURRENT_DATE`, [pid])
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE(started_at AT TIME ZONE 'UTC')=CURRENT_DATE`, [pid]),
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC')=DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')`, [pid]),
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC')=DATE_TRUNC('week', (CURRENT_DATE-INTERVAL '7 days') AT TIME ZONE 'UTC')`, [pid])
     ]);
+
+    const seconds_today = todayH.rows[0]?.seconds || 0;
+    const seconds_this_week = thisWeekH.rows[0]?.seconds || 0;
+    const seconds_last_week = lastWeekH.rows[0]?.seconds || 0;
+
+    // Calcular % de cambio en productividad
+    let productivity_change = 0;
+    if (seconds_last_week > 0) {
+      productivity_change = Math.round(((seconds_this_week - seconds_last_week) / seconds_last_week) * 100);
+    } else if (seconds_this_week > 0) {
+      productivity_change = 100; // Nueva actividad esta semana
+    }
+
     res.json({
       active_projects: parseInt(ap.rows[0]?.count || 0),
       pending_tasks: parseInt(pt.rows[0]?.count || 0),
       high_priority_tasks: parseInt(hp.rows[0]?.count || 0),
       active_timer: tm.rows[0] || null,
       recent_tasks: rt.rows || [],
-      seconds_today: todayH.rows[0]?.seconds_today || 0
+      seconds_today: seconds_today,
+      seconds_this_week: seconds_this_week,
+      seconds_last_week: seconds_last_week,
+      productivity_change: productivity_change
     });
   } catch (e) {
     console.error('[/api/dashboard] Error:', e.message);

@@ -876,6 +876,31 @@ async function renderDash(){
       const d=await API.get('/api/dashboard/'+uid4);
       const dp=document.getElementById('d-projs');if(dp)dp.textContent=d.active_projects;
       const dt=document.getElementById('d-tasks');if(dt)dt.textContent=d.pending_tasks;
+
+      // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO
+      const todayHours = document.getElementById('d-today-hours');
+      if(todayHours) {
+        const h = Math.floor(d.seconds_today / 3600);
+        const m = Math.floor((d.seconds_today % 3600) / 60);
+        todayHours.textContent = `${h}h ${m}m`;
+      }
+
+      const weekHours = document.getElementById('d-week-hours');
+      if(weekHours) {
+        const h = Math.floor(d.seconds_this_week / 3600);
+        const m = Math.floor((d.seconds_this_week % 3600) / 60);
+        weekHours.textContent = `${h}h ${m}m`;
+      }
+
+      // ⭐ ACTUALIZAR INDICADOR DE PRODUCTIVIDAD
+      const prodChange = document.getElementById('d-productivity');
+      if(prodChange) {
+        const isUp = d.productivity_change >= 0;
+        const arrow = isUp ? '↑' : '↓';
+        const color = isUp ? 'var(--grn)' : 'var(--ros)';
+        prodChange.innerHTML = `<span style="color:${color};font-weight:700">${arrow} ${Math.abs(d.productivity_change)}%</span>`;
+      }
+
       const tb=document.getElementById('d-tbody');
       if(tb && d.recent_tasks){
         tb.innerHTML=d.recent_tasks.map(t=>`
