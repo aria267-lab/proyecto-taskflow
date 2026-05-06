@@ -665,8 +665,29 @@ async function tStop(){
 
 function renderTmrLog(){
   const el=document.getElementById('tmr-log');if(!el)return;
-  const items=ST.logs.slice(0,4);
-  if(!items.length){el.innerHTML='<div style="color:var(--t2);font-size:.78rem;text-align:center;padding:12px">Sin registros aún</div>';return}
+
+  // ⭐ FILTRAR SOLO SESIONES DE HOY
+  const today = new Date().toDateString();
+  const todayLogs = (ST.logs || []).filter(l => {
+    const logDate = new Date(l.started_at).toDateString();
+    return logDate === today;
+  });
+
+  const items = todayLogs.slice(0,6);
+
+  if(!items.length){
+    el.innerHTML='<div style="color:var(--t2);font-size:.78rem;text-align:center;padding:12px">Sin registros hoy</div>';
+    return;
+  }
+
+  // Mostrar cantidad de sesiones hoy
+  const sessionsCount = document.getElementById('tmr-sessions-today');
+  if(sessionsCount) {
+    const activeCount = todayLogs.filter(l => l.is_active).length;
+    const completedCount = todayLogs.filter(l => !l.is_active).length;
+    sessionsCount.textContent = todayLogs.length;
+  }
+
   el.innerHTML=items.map(l=>{
     const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active?'activo…':'—');
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)">
@@ -877,7 +898,7 @@ async function renderDash(){
       const dp=document.getElementById('d-projs');if(dp)dp.textContent=d.active_projects;
       const dt=document.getElementById('d-tasks');if(dt)dt.textContent=d.pending_tasks;
 
-      // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO
+      // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO EN DASHBOARD
       const todayHours = document.getElementById('d-today-hours');
       if(todayHours) {
         const h = Math.floor(d.seconds_today / 3600);
@@ -892,13 +913,13 @@ async function renderDash(){
         weekHours.textContent = `${h}h ${m}m`;
       }
 
-      // ⭐ ACTUALIZAR INDICADOR DE PRODUCTIVIDAD
-      const prodChange = document.getElementById('d-productivity');
-      if(prodChange) {
+      // ⭐ ACTUALIZAR INDICADOR DE PRODUCTIVIDAD EN DASHBOARD
+      const prodSub = document.getElementById('d-productivity-sub');
+      if(prodSub) {
         const isUp = d.productivity_change >= 0;
         const arrow = isUp ? '↑' : '↓';
-        const color = isUp ? 'var(--grn)' : 'var(--ros)';
-        prodChange.innerHTML = `<span style="color:${color};font-weight:700">${arrow} ${Math.abs(d.productivity_change)}%</span>`;
+        const trendClass = isUp ? 'up' : 'dn';
+        prodSub.innerHTML = `<span class="trend ${trendClass}">${arrow} ${Math.abs(d.productivity_change)}%</span> vs semana anterior`;
       }
 
       const tb=document.getElementById('d-tbody');

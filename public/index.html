@@ -224,8 +224,8 @@
         <div class="g4 mb20">
           <div class="stat anim a1"><div class="stat-ico" style="background:var(--blue-l)">📁</div><div class="stat-lbl">Proyectos activos</div><div class="stat-val" style="color:var(--blue)" id="d-projs">4</div><div class="stat-sub"><span class="trend up">↑ 2</span> este mes</div></div>
           <div class="stat anim a2"><div class="stat-ico" style="background:var(--amb-l)">📋</div><div class="stat-lbl">Tareas pendientes</div><div class="stat-val" style="color:var(--amb)" id="d-tasks">0</div><div class="stat-sub"><span class="trend dn">3</span> alta prioridad</div></div>
-          <div class="stat anim a3"><div class="stat-ico" style="background:var(--teal-l)">⏱</div><div class="stat-lbl">Horas hoy</div><div class="stat-val" style="color:var(--teal)" id="d-hours">0h 00m</div><div class="stat-sub">Meta: 8h diarias</div></div>
-          <div class="stat anim a4"><div class="stat-ico" style="background:var(--vio-l)">📈</div><div class="stat-lbl">Horas esta semana</div><div class="stat-val" style="color:var(--vio)">22h 15m</div><div class="stat-sub"><span class="trend up">↑ 14%</span> vs semana anterior</div></div>
+          <div class="stat anim a3"><div class="stat-ico" style="background:var(--teal-l)">⏱</div><div class="stat-lbl">Horas hoy</div><div class="stat-val" style="color:var(--teal)" id="d-today-hours">0h 0m</div><div class="stat-sub">Meta: 8h diarias</div></div>
+          <div class="stat anim a4"><div class="stat-ico" style="background:var(--vio-l)">📈</div><div class="stat-lbl">Horas esta semana</div><div class="stat-val" style="color:var(--vio)" id="d-week-hours">0h 0m</div><div class="stat-sub" id="d-productivity-sub"><span class="trend up">↑ 0%</span> vs semana anterior</div></div>
         </div>
         <div class="g2 mb20">
           <div class="card anim">
@@ -407,20 +407,13 @@
           </div>
           <div class="col g16">
             <div class="card anim">
-              <div class="card-t">Resumen de tiempo</div>
-              <div class="g2" style="gap:10px">
-                <div style="background:var(--blue-l);border-radius:var(--r);padding:14px;text-align:center;border:1px solid rgba(36,98,233,.15)"><div id="d-today-hours" style="font-size:1.4rem;font-weight:800;color:var(--blue);font-family:var(--mono)">0h 0m</div><div style="font-size:.67rem;color:var(--t2);margin-top:3px">Horas hoy</div></div>
-                <div style="background:var(--s1);border-radius:var(--r);padding:14px;text-align:center;border:1px solid var(--bdr)"><div id="d-week-hours" style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:var(--mono)">0h 0m</div><div style="font-size:.67rem;color:var(--t2);margin-top:3px">Horas esta semana</div></div>
+              <div class="card-t">Sesiones hoy</div>
+              <div style="padding:14px;text-align:center;border:1px solid var(--bdr);border-radius:var(--r);background:var(--s1)">
+                <div id="tmr-sessions-today" style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:var(--mono)">0</div>
+                <div style="font-size:.67rem;color:var(--t2);margin-top:3px">Sesiones registradas</div>
               </div>
             </div>
-            <div class="card anim">
-              <div class="card-t">Productividad</div>
-              <div style="padding:14px;text-align:center">
-                <div id="d-productivity" style="font-size:1.4rem;font-weight:800;margin-bottom:8px">↑ 0%</div>
-                <div style="font-size:.75rem;color:var(--t2)">respecto a la semana pasada</div>
-              </div>
-            </div>
-            <div class="card anim"><div class="card-t">Últimos registros</div><div id="tmr-log"></div></div>
+            <div class="card anim"><div class="card-t">Actividad reciente (hoy)</div><div id="tmr-log"></div></div>
           </div>
         </div>
       </div>
