@@ -10,11 +10,12 @@ const pool   = require('../db');
 const { verifyToken } = require('../middlewares/auth');
 
 const DEFAULTS = {
-  alto_contraste:  false,
-  fuente_dyslexic: false,
-  modo_enfoque:    false,
-  tamano_fuente:   'normal',
-  espaciado:       'normal'
+  alto_contraste:     false,
+  fuente_dyslexic:    false,
+  modo_enfoque:       false,
+  tamano_fuente:      'normal',
+  espaciado_letras:   'normal',
+  indicadores_foco:   true
 };
 
 /* GET /api/preferencias/:usuarioId */
@@ -27,38 +28,46 @@ router.get('/:usuarioId', verifyToken, async (req, res) => {
     // Devolver defaults si aún no existen
     res.json(rows[0] || { profile_id: req.params.usuarioId, ...DEFAULTS });
   } catch (e) {
+    console.error('[preferencias GET]', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
 /* PUT /api/preferencias/:usuarioId */
-// Body: { alto_contraste?, fuente_dyslexic?, modo_enfoque?, tamano_fuente?, espaciado? }
+// Body: { alto_contraste?, fuente_dyslexic?, modo_enfoque?, tamano_fuente?, espaciado_letras?, indicadores_foco? }
 router.put('/:usuarioId', verifyToken, async (req, res) => {
-  const { alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado } = req.body;
+  const { alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado_letras, indicadores_foco } = req.body;
 
   // Validar tamano_fuente
-  const validTamanos = ['normal', 'grande', 'xl'];
+  const validTamanos = ['pequeno', 'normal', 'grande', 'xl'];
   if (tamano_fuente && !validTamanos.includes(tamano_fuente)) {
     return res.status(400).json({ error: `tamano_fuente debe ser: ${validTamanos.join(', ')}` });
+  }
+
+  // Validar espaciado_letras
+  const validEspaciado = ['normal', 'ampliado'];
+  if (espaciado_letras && !validEspaciado.includes(espaciado_letras)) {
+    return res.status(400).json({ error: `espaciado_letras debe ser: ${validEspaciado.join(', ')}` });
   }
 
   try {
     const { rows } = await pool.query(
       `INSERT INTO user_preferences
-         (profile_id, alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado)
+         (profile_id, alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado_letras)
        VALUES ($1,$2,$3,$4,$5,$6)
        ON CONFLICT (profile_id) DO UPDATE SET
          alto_contraste  = COALESCE($2, user_preferences.alto_contraste),
          fuente_dyslexic = COALESCE($3, user_preferences.fuente_dyslexic),
          modo_enfoque    = COALESCE($4, user_preferences.modo_enfoque),
          tamano_fuente   = COALESCE($5, user_preferences.tamano_fuente),
-         espaciado       = COALESCE($6, user_preferences.espaciado),
+         espaciado_letras = COALESCE($6, user_preferences.espaciado_letras),
          updated_at      = NOW()
        RETURNING *`,
-      [req.params.usuarioId, alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado]
+      [req.params.usuarioId, alto_contraste, fuente_dyslexic, modo_enfoque, tamano_fuente, espaciado_letras]
     );
     res.json(rows[0]);
   } catch (e) {
+    console.error('[preferencias PUT]', e.message);
     res.status(500).json({ error: e.message });
   }
 });
