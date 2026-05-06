@@ -156,6 +156,17 @@
   <!-- Botón flotante para abrir sidebar en modo TDAH -->
   <button id="enfoque-toggle" class="btn btn-p" style="display:none; padding:10px 16px; font-size:0.9rem; gap:6px; align-items:center; position:fixed; left:20px; bottom:20px; z-index:499;" onclick="toggleSidebarTDAH()" title="Mostrar menú de navegación">📋 Menú</button>
 
+  <!-- Indicador flotante cuando sidebar está cerrado -->
+  <div id="sidebar-open-hint" style="display:none; position:fixed; top:20px; left:20px; background:#2462E9; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.85rem; z-index:250; cursor:pointer; box-shadow:0 4px 12px rgba(36,98,233,.35); animation:pulse 1s infinite" onclick="document.getElementById('sb-tog').click()" title="Click para abrir menú">
+    📂 Abrir menú
+  </div>
+  <style>
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
+
   <!-- SIDEBAR -->
   <aside id="sidebar">
     <div class="sb-logo">

@@ -495,6 +495,16 @@ document.getElementById('sb-tog').addEventListener('click',()=>{
   ST.mini=!ST.mini;
   document.getElementById('sidebar').classList.toggle('mini',ST.mini);
   document.getElementById('main').classList.toggle('wide',ST.mini);
+
+  // Mostrar/ocultar indicador flotante
+  const hint = document.getElementById('sidebar-open-hint');
+  if(ST.mini && hint) {
+    hint.style.display = 'block';
+    console.log('[sidebar] Cerrado - Mostrando indicador flotante');
+  } else if(!ST.mini && hint) {
+    hint.style.display = 'none';
+    console.log('[sidebar] Abierto - Ocultando indicador');
+  }
 });
 
 const TITLES={dashboard:'Dashboard',projects:'Proyectos','create-project':'Nuevo Proyecto',
@@ -1188,6 +1198,10 @@ renderNotif();
     ST.user = savedUser;   // Restaurar inmediatamente sin esperar BD
     updateUserUI(ST.user);
     document.getElementById('auth-overlay').style.display='none';
+
+    // ⭐ CARGAR PREFERENCIAS INMEDIATAMENTE
+    await loadPrefs();
+
     // Intentar actualizar perfil desde BD en segundo plano
     try {
       const profiles = await API.get('/api/perfiles');
