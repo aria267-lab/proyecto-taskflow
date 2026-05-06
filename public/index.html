@@ -157,15 +157,10 @@
   <button id="enfoque-toggle" class="btn btn-p" style="display:none; padding:10px 16px; font-size:0.9rem; gap:6px; align-items:center; position:fixed; left:20px; bottom:20px; z-index:499;" onclick="toggleSidebarTDAH()" title="Mostrar menú de navegación">📋 Menú</button>
 
   <!-- Indicador flotante cuando sidebar está cerrado -->
-  <div id="sidebar-open-hint" style="display:none; position:fixed; top:20px; left:20px; background:#2462E9; color:#fff; padding:10px 16px; border-radius:8px; font-weight:700; font-size:0.85rem; z-index:250; cursor:pointer; box-shadow:0 4px 12px rgba(36,98,233,.35); animation:pulse 1s infinite" onclick="document.getElementById('sb-tog').click()" title="Click para abrir menú">
-    📂 Abrir menú
-  </div>
-  <style>
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-  </style>
+  <button id="sidebar-open-hint" style="display:none; position:fixed; bottom:30px; right:30px; background:#2462E9; color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; font-size:0.9rem; z-index:250; cursor:pointer; box-shadow:0 6px 20px rgba(36,98,233,.4); border:none; transition:all 0.3s; gap:8px; align-items:center; flex-direction:column" onclick="document.getElementById('sb-tog').click()" title="Click para abrir menú" onmouseover="this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 24px rgba(36,98,233,.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 20px rgba(36,98,233,.4)'">
+    <span style="font-size:1.2rem">☰</span>
+    <span>Abrir menú</span>
+  </button>
 
   <!-- SIDEBAR -->
   <aside id="sidebar">

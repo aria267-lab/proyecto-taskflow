@@ -1283,11 +1283,20 @@ function applyPrefs(p) {
 
 async function loadPrefs() {
   if (!ST.user || !ST.user.id) return;
+  console.log('[loadPrefs] Cargando preferencias para usuario:', ST.user.id);
 
   // Intentar cargar de BD primero
   try {
     const p = await API.get('/api/preferencias/'+ST.user.id);
     applyPrefs(p);
+    // ⭐ Forzar recalc del asistente después de aplicar preferencias
+    setTimeout(() => {
+      const burbuja = document.getElementById('va-burbuja');
+      if(burbuja) {
+        burbuja.style.fontSize = window.getComputedStyle(document.body).fontSize;
+        console.log('[loadPrefs] Asistente recalculado con tamaño correcto');
+      }
+    }, 100);
     return;
   } catch(e) {
     console.log('[loadPrefs] BD no disponible, intentando localStorage');
@@ -1299,6 +1308,13 @@ async function loadPrefs() {
     if(saved) {
       const p = JSON.parse(saved);
       applyPrefs(p);
+      // ⭐ Forzar recalc del asistente
+      setTimeout(() => {
+        const burbuja = document.getElementById('va-burbuja');
+        if(burbuja) {
+          burbuja.style.fontSize = window.getComputedStyle(document.body).fontSize;
+        }
+      }, 100);
       console.log('[loadPrefs] Preferencias cargadas desde localStorage');
     }
   } catch(e) {
