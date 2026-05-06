@@ -156,18 +156,11 @@
   <!-- Botón flotante para abrir sidebar en modo TDAH -->
   <button id="enfoque-toggle" class="btn btn-p" style="display:none; padding:10px 16px; font-size:0.9rem; gap:6px; align-items:center; position:fixed; left:20px; bottom:20px; z-index:499;" onclick="toggleSidebarTDAH()" title="Mostrar menú de navegación">📋 Menú</button>
 
-  <!-- Indicador flotante cuando sidebar está cerrado -->
-  <button id="sidebar-open-hint" style="display:none; position:fixed; bottom:30px; right:30px; background:#2462E9; color:#fff; padding:14px 20px; border-radius:12px; font-weight:700; font-size:0.9rem; z-index:250; cursor:pointer; box-shadow:0 6px 20px rgba(36,98,233,.4); border:none; transition:all 0.3s; gap:8px; align-items:center; flex-direction:column" onclick="document.getElementById('sb-tog').click()" title="Click para abrir menú" onmouseover="this.style.transform='scale(1.08)'; this.style.boxShadow='0 8px 24px rgba(36,98,233,.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 6px 20px rgba(36,98,233,.4)'">
-    <span style="font-size:1.2rem">☰</span>
-    <span>Abrir menú</span>
-  </button>
-
   <!-- SIDEBAR -->
   <aside id="sidebar">
     <div class="sb-logo">
-      <div class="sb-mark">TF</div>
+      <button class="sb-mark" id="sb-tog" title="Abrir/Cerrar menú" style="border:none;cursor:pointer;background:var(--blue);color:#fff;font-weight:800;border-radius:10px;">TF</button>
       <span class="sb-word">Task<em>Flow</em></span>
-      <button class="sb-tog" id="sb-tog" title="Abrir/Cerrar menú">‹</button>
     </div>
     <nav class="sb-nav">
       <a class="sb-item active" data-page="dashboard" onclick="nav(this,'dashboard')"><span class="sb-ico">⊞</span><span class="sb-lbl">Dashboard</span><span class="sb-tip">Dashboard</span></a>

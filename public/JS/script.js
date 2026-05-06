@@ -1285,40 +1285,34 @@ async function loadPrefs() {
   if (!ST.user || !ST.user.id) return;
   console.log('[loadPrefs] Cargando preferencias para usuario:', ST.user.id);
 
-  // Intentar cargar de BD primero
-  try {
-    const p = await API.get('/api/preferencias/'+ST.user.id);
-    applyPrefs(p);
-    // ⭐ Forzar recalc del asistente después de aplicar preferencias
-    setTimeout(() => {
-      const burbuja = document.getElementById('va-burbuja');
-      if(burbuja) {
-        burbuja.style.fontSize = window.getComputedStyle(document.body).fontSize;
-        console.log('[loadPrefs] Asistente recalculado con tamaño correcto');
-      }
-    }, 100);
-    return;
-  } catch(e) {
-    console.log('[loadPrefs] BD no disponible, intentando localStorage');
-  }
-
-  // Fallback a localStorage
+  // ⭐ CARGAR PRIMERO DE localStorage (INMEDIATO, GARANTIZADO)
   try {
     const saved = localStorage.getItem('taskflow_prefs_'+ST.user.id);
     if(saved) {
       const p = JSON.parse(saved);
       applyPrefs(p);
-      // ⭐ Forzar recalc del asistente
+      console.log('[loadPrefs] ✅ Preferencias cargadas desde localStorage:', p);
+
+      // Forzar recalc del asistente
       setTimeout(() => {
         const burbuja = document.getElementById('va-burbuja');
         if(burbuja) {
           burbuja.style.fontSize = window.getComputedStyle(document.body).fontSize;
         }
-      }, 100);
-      console.log('[loadPrefs] Preferencias cargadas desde localStorage');
+      }, 50);
     }
   } catch(e) {
-    console.log('[loadPrefs] Error cargando localStorage:', e.message);
+    console.error('[loadPrefs] Error cargando localStorage:', e.message);
+  }
+
+  // Luego intentar actualizar desde BD (sin bloquear)
+  try {
+    const p = await API.get('/api/preferencias/'+ST.user.id);
+    console.log('[loadPrefs] ✅ Preferencias cargadas desde BD:', p);
+    applyPrefs(p);
+    localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(p));
+  } catch(e) {
+    console.log('[loadPrefs] BD no disponible, usando localStorage:', e.message);
   }
 }
 
@@ -1326,19 +1320,25 @@ async function savePrefs(changes) {
   Object.assign(PREFS, changes);
   applyPrefs(PREFS);
 
-  // Guardar en localStorage como fallback
-  try {
-    localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(PREFS));
-  } catch(e) { /* localStorage lleno o desactivado */ }
+  // ⭐ GUARDAR INMEDIATAMENTE EN localStorage PRIMERO (garantizado)
+  if(ST.user && ST.user.id) {
+    try {
+      localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(PREFS));
+      console.log('[savePrefs] ✅ Guardadas en localStorage:', PREFS);
+    } catch(e) {
+      console.error('[savePrefs] Error guardando en localStorage:', e.message);
+    }
+  }
 
+  // Intentar guardar en BD (async, no bloquea)
   if (!ST.user || !ST.user.id) return;
   try {
     await API.put('/api/preferencias/'+ST.user.id, PREFS);
+    console.log('[savePrefs] ✅ Guardadas en BD');
     toast('✓ Preferencias guardadas','s');
   } catch(e) {
-    // Silenciar el error y usar localStorage
-    console.log('[savePrefs] BD no disponible, usando localStorage');
-    toast('Preferencias guardadas localmente','i');
+    console.log('[savePrefs] BD no disponible, usando localStorage:', e.message);
+    toast('Guardado localmente','i');
   }
 }
 
