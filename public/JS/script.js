@@ -244,6 +244,55 @@ function getEffectiveUserId() {
 
 
 // ── LOGIN CON API JWT ────────────────────────────────────────
+// ════════════════════════════════════════════
+// REGISTRO DE ACTIVIDADES
+// ════════════════════════════════════════════
+async function logActivity(event, entityType, entityId, payload = {}) {
+  if (!ST.user || !ST.user.id) return;
+
+  try {
+    const res = await fetch(BASE_URL + '/api/activity-log', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('tf_access_token')
+      },
+      body: JSON.stringify({ event, entity_type: entityType, entity_id: entityId, payload })
+    });
+
+    if (res.ok) {
+      console.log('[logActivity] ✅ Registrada:', event);
+      // Si la página de perfil está abierta, actualizar actividad
+      if(document.getElementById('activity-log').style.display !== 'none') {
+        await loadActivityLog();
+      }
+    }
+  } catch(e) {
+    console.error('[logActivity] Error:', e.message);
+  }
+}
+
+// ════════════════════════════════════════════
+// LOGOUT - CERRAR SESIÓN
+// ════════════════════════════════════════════
+function doLogout() {
+  localStorage.removeItem('tf_user');
+  localStorage.removeItem('tf_access_token');
+  localStorage.removeItem('tf_refresh_token');
+  localStorage.removeItem('tf_login_attempts');
+
+  // Limpiar estado global
+  ST = { user: null, projs: [], tasks: [], mini: false, tProj: null, tTask: null, msgInput: '' };
+  PREFS = { alto_contraste: false, fuente_dyslexic: false, modo_enfoque: false, tamano_fuente: 'normal', espaciado_letras: 'normal', indicadores_foco: true };
+
+  // Mostrar pantalla de login
+  document.getElementById('auth-overlay').style.display = 'flex';
+  showAuth('login');
+
+  toast('Sesión cerrada correctamente','s');
+  console.log('[doLogout] ✅ Sesión cerrada');
+}
+
 async function doLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -593,6 +642,18 @@ async function tStop(){
       const logs = await API.get('/api/tiempos?profile_id='+ST.user.id);
       ST.logs = logs||[];
       renderTmrLog();
+
+      // ⭐ REGISTRAR ACTIVIDAD
+      const task = ST.tasks.find(t=>t.id===ST.tTask);
+      const proj = ST.projs.find(p=>p.id===ST.tProj);
+      await logActivity('time_logged', 'time_log', ST.tLogId || 'unknown', {
+        duration_seconds: ST.tSec,
+        task_name: task?.title || '',
+        task_id: ST.tTask,
+        project_name: proj?.name || '',
+        project_id: ST.tProj,
+        duration_formatted: fmt(ST.tSec)
+      });
     } catch(ex){ toast('Sesión guardada localmente','i'); }
   }
   ST.tSec=0; ST.tLogId=null; updateTmr();
@@ -679,6 +740,24 @@ function initKanbanDrop(){
           ST.projs = projs||ST.projs;
           renderKanban();
           toast('Tarea → "'+COL_NAME[col]+'"','s');
+
+          // ⭐ REGISTRAR ACTIVIDAD
+          if(col === 'done') {
+            const proj = ST.projs.find(p=>p.id===t.project_id);
+            await logActivity('task_completed', 'task', t.id, {
+              task_name: t.title,
+              project_name: proj?.name || '',
+              project_id: t.project_id
+            });
+          } else if(col === 'progress' || col === 'todo' || col === 'review') {
+            const proj = ST.projs.find(p=>p.id===t.project_id);
+            await logActivity('task_moved', 'task', t.id, {
+              task_name: t.title,
+              project_name: proj?.name || '',
+              from_status: t.column_status,
+              to_status: col
+            });
+          }
         } catch(ex){ toast('Error moviendo tarea','e'); }
       }
       ST.dragId=null;
@@ -767,6 +846,15 @@ async function doNewTask(e){
       const tasks=await API.get('/api/tareas');
       ST.tasks=tasks||ST.tasks;
       OFFLINE.saveTasks(ST.tasks);
+
+      // ⭐ REGISTRAR ACTIVIDAD
+      const proj = ST.projs.find(p=>p.id===body.project_id);
+      await logActivity('task_created', 'task', newT?.id || 'unknown', {
+        task_name: title,
+        project_name: proj?.name || '',
+        project_id: body.project_id
+      });
+
       renderKanban(); closeM('m-newtask'); toast('✓ Tarea creada','s');
       populateTimerSelects();
     } catch(ex){
