@@ -63,7 +63,7 @@ const API = {
 };
 
 /* ══════════════════════════════════════════════
-   ESTADO GLOBAL
+  ESTADO GLOBAL
 ══════════════════════════════════════════════ */
 const ST = {
   mini:false, page:'dashboard',
@@ -1480,3 +1480,249 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // Las preferencias se cargan en continueSession() y doLogin()
 // Removido: redefinición de loadAll() que causaba recursión infinita
 
+// ════════════════════════════════════════════
+// KANBAN CON TECLADO (WCAG 2.1 AA)
+// Flechas Izquierda/Derecha para mover tarjetas
+// ════════════════════════════════════════════
+
+// Variables para navegación por teclado
+let focusedCardIndex = 0;
+let focusedColumn = 'todo';
+
+// Hacer las tarjetas seleccionables con teclado
+function enableKeyboardKanban() {
+  document.querySelectorAll('.kcard').forEach((card, index) => {
+    // Hacer las tarjetas enfocables con Tab
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-grabbed', 'false');
+    
+    // Instrucciones para lectores de pantalla
+    const colName = card.closest('.kbc')?.querySelector('.kbc-name')?.textContent || '';
+    card.setAttribute('aria-label', `Tarea: ${card.querySelector('.kcard-t')?.textContent || ''}. Columna: ${colName}. Presiona Enter para seleccionar, flechas para mover.`);
+    
+    card.addEventListener('keydown', handleCardKeydown);
+    card.addEventListener('focus', () => {
+      card.style.outline = '3px solid var(--blue)';
+      card.style.outlineOffset = '2px';
+    });
+    card.addEventListener('blur', () => {
+      card.style.outline = '';
+      card.style.outlineOffset = '';
+    });
+  });
+}
+
+// Manejar teclas en tarjetas
+async function handleCardKeydown(e) {
+  const card = e.currentTarget;
+  const taskId = card.dataset.id;
+  const currentCol = card.closest('.kbc').id.replace('col-', '');
+  
+  switch(e.key) {
+    case 'ArrowLeft':
+      e.preventDefault();
+      await moveTaskKeyboard(taskId, currentCol, 'left');
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      await moveTaskKeyboard(taskId, currentCol, 'right');
+      break;
+    case 'Enter':
+    case ' ':
+      e.preventDefault();
+      // Abrir edición de tarea
+      editTask(taskId);
+      break;
+    case 'Delete':
+      e.preventDefault();
+      if (ST.user?.role === 'Admin' || ST.user?.role === 'Gerente') {
+        if (confirm('¿Eliminar esta tarea?')) {
+          await API.delete('/api/tareas/' + taskId);
+          ST.tasks = ST.tasks.filter(t => t.id !== taskId);
+          renderKanban();
+          enableKeyboardKanban();
+          toast('Tarea eliminada', 'i');
+        }
+      }
+      break;
+  }
+}
+
+// Mover tarea con teclado
+async function moveTaskKeyboard(taskId, currentCol, direction) {
+  const columns = ['todo', 'progress', 'done'];
+  const currentIndex = columns.indexOf(currentCol);
+  let newCol;
+  
+  if (direction === 'left' && currentIndex > 0) {
+    newCol = columns[currentIndex - 1];
+  } else if (direction === 'right' && currentIndex < columns.length - 1) {
+    newCol = columns[currentIndex + 1];
+  } else {
+    return; // No puede moverse más
+  }
+  
+  const task = ST.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  
+  try {
+    await API.patch('/api/tareas/' + taskId + '/mover', { column_status: newCol });
+    task.column_status = newCol;
+    if (newCol === 'done') task.progress = 100;
+    if (newCol === 'todo') task.progress = 0;
+    
+    renderKanban();
+    enableKeyboardKanban();
+    
+    // Mantener el foco en la tarjeta movida
+    setTimeout(() => {
+      const movedCard = document.querySelector(`.kcard[data-id="${taskId}"]`);
+      if (movedCard) movedCard.focus();
+    }, 100);
+    
+    toast(`Tarea movida → "${COL_NAME[newCol]}"`, 's');
+  } catch (ex) {
+    toast('Error moviendo tarea', 'e');
+  }
+}
+
+// Modificar renderKanban para llamar a enableKeyboardKanban
+const originalRenderKanban = renderKanban;
+renderKanban = function() {
+  originalRenderKanban();
+  setTimeout(enableKeyboardKanban, 100);
+};
+
+
+
+// ════════════════════════════════════════════
+// ATAJOS DE TECLADO GLOBALES
+// ════════════════════════════════════════════
+
+document.addEventListener('keydown', function(e) {
+  // No activar atajos si se está escribiendo en un input
+  const isInputFocused = document.activeElement?.tagName === 'INPUT' || 
+                         document.activeElement?.tagName === 'TEXTAREA' ||
+                         document.activeElement?.isContentEditable;
+  
+  if (isInputFocused) {
+    // Escape SIEMPRE cierra modales, incluso en inputs
+    if (e.key === 'Escape') {
+      closeAllModals();
+    }
+    return;
+  }
+  
+  switch(e.key) {
+    case 'Escape':
+      e.preventDefault();
+      closeAllModals();
+      // Cerrar chat si está abierto
+      const chatPanel = document.getElementById('chat-panel');
+      if (chatPanel?.classList.contains('open')) {
+        toggleChat();
+      }
+      // Cerrar asistente virtual si está abierto
+      const vaChat = document.getElementById('va-chat');
+      if (vaChat?.classList.contains('va-open') && asistente) {
+        asistente.cerrar();
+      }
+      break;
+      
+    case 'g':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+G: Ir a Kanban
+        nav(document.querySelector('[data-page=kanban]'), 'kanban');
+      }
+      break;
+      
+    case 'd':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+D: Ir a Dashboard
+        nav(document.querySelector('[data-page=dashboard]'), 'dashboard');
+      }
+      break;
+      
+    case 'n':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+N: Nueva tarea
+        openNewTask('todo');
+      }
+      break;
+      
+    case 'h':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+H: Abrir asistente virtual
+        if (asistente) {
+          asistente.abrir();
+        }
+      }
+      break;
+      
+    case '?':
+      // Mostrar ayuda de atajos
+      showKeyboardShortcutsHelp();
+      break;
+  }
+});
+
+// Cerrar todos los modales abiertos
+function closeAllModals() {
+  document.querySelectorAll('.modal-over.open').forEach(m => m.classList.remove('open'));
+  // También cerrar notificaciones si están abiertas
+  const notifDropdown = document.getElementById('notif-dropdown');
+  if (notifDropdown) notifDropdown.style.display = 'none';
+}
+
+// Mostrar ayuda de atajos de teclado
+function showKeyboardShortcutsHelp() {
+  const shortcuts = [
+    { key: 'Tab', desc: 'Navegar entre elementos' },
+    { key: 'Shift + Tab', desc: 'Navegar hacia atrás' },
+    { key: 'Enter / Space', desc: 'Activar botón/enlace' },
+    { key: 'Escape', desc: 'Cerrar ventanas/modales' },
+    { key: '← →', desc: 'Mover tarea en Kanban' },
+    { key: 'Ctrl + G', desc: 'Ir a Kanban' },
+    { key: 'Ctrl + D', desc: 'Ir a Dashboard' },
+    { key: 'Ctrl + N', desc: 'Nueva tarea' },
+    { key: 'Ctrl + H', desc: 'Abrir asistente virtual' },
+    { key: 'Delete', desc: 'Eliminar tarea seleccionada' },
+    { key: '?', desc: 'Mostrar esta ayuda' }
+  ];
+  
+  const helpHtml = `
+    <div class="modal-over open" id="m-shortcuts" onclick="if(event.target===this)closeM('m-shortcuts')">
+      <div class="modal" style="max-width:500px">
+        <div class="modal-hdr">
+          <h3>⌨️ Atajos de Teclado</h3>
+          <button class="modal-x" onclick="closeM('m-shortcuts')">✕</button>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Tecla</th><th>Acción</th></tr></thead>
+          <tbody>
+            ${shortcuts.map(s => `
+              <tr>
+                <td style="font-family:var(--mono);font-size:.75rem;font-weight:700;padding:8px 12px">
+                  <kbd style="background:var(--s2);padding:2px 6px;border-radius:4px;border:1px solid var(--bdr)">${s.key}</kbd>
+                </td>
+                <td style="font-size:.8rem;padding:8px 12px">${s.desc}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:.7rem;color:var(--t2);margin-top:12px;text-align:center">
+          Presiona <kbd style="background:var(--s2);padding:1px 5px;border-radius:3px">?</kbd> en cualquier momento para ver esta ayuda
+        </p>
+      </div>
+    </div>
+  `;
+  
+  // Eliminar ayuda anterior si existe
+  document.getElementById('m-shortcuts')?.remove();
+  document.body.insertAdjacentHTML('beforeend', helpHtml);
+}
