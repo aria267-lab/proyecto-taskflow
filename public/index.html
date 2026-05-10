@@ -74,13 +74,36 @@
         <div id="reg-err" class="err-box"></div>
         <form id="reg-form" class="fstack" onsubmit="doRegister(event)">
           <div class="fg"><label class="fl">Nombre completo *</label><input id="reg-name" class="fi" type="text" placeholder="María González" required></div>
-          <div class="fg"><label class="fl">Correo electrónico *</label><input id="reg-email" class="fi" type="email" placeholder="tu@correo.com" required></div>
           <div class="frow">
-            <div class="fg"><label class="fl">Contraseña *</label><input id="reg-pass" class="fi" type="password" placeholder="Mín. 8 caracteres" required minlength="8"></div>
-            <div class="fg"><label class="fl">Confirmar *</label><input id="reg-pass2" class="fi" type="password" placeholder="Repite" required></div>
+            <div class="fg"><label class="fl">Correo electrónico *</label><input id="reg-email" class="fi" type="email" placeholder="tu@correo.com" required></div>
+            <div class="fg"><label class="fl">Cédula</label><input id="reg-cedula" class="fi" type="text" placeholder="1234567" maxlength="10"></div>
           </div>
-          <div class="fg"><label class="fl">Rol</label><select id="reg-role" class="fi fsel"><option value="Empleado">Empleado</option><option value="Gerente">Gerente</option><option value="Admin">Administrador</option></select></div>
-          <div class="fg"><label class="fl">Organización</label><input id="reg-org" class="fi" type="text" placeholder="CreativeHub" value="CreativeHub"></div>
+          <div class="frow">
+            <div class="fg"><label class="fl">Contraseña *</label>
+              <div style="position:relative">
+                <input id="reg-pass" class="fi" type="password" placeholder="Min. 8, mayús, núm, especial" required minlength="8" style="width:100%;padding-right:40px">
+                <button type="button" onclick="togglePass('reg-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t2);font-size:.85rem;line-height:1">👁</button>
+              </div>
+            </div>
+            <div class="fg"><label class="fl">Confirmar *</label>
+              <div style="position:relative">
+                <input id="reg-pass2" class="fi" type="password" placeholder="Repite" required style="width:100%;padding-right:40px">
+                <button type="button" onclick="togglePass('reg-pass2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t2);font-size:.85rem;line-height:1">👁</button>
+              </div>
+            </div>
+          </div>
+          <div id="pwd-requirements" style="display:none;background:var(--s1);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;font-size:.7rem;color:var(--t1);line-height:1.6">
+            <strong>Requisitos de contraseña:</strong><br>
+            ✓ Mínimo 8 caracteres<br>
+            ✓ Al menos una mayúscula (A-Z)<br>
+            ✓ Al menos una minúscula (a-z)<br>
+            ✓ Al menos un número (0-9)<br>
+            ✓ Al menos un especial (!@#$%^&*)<br>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="fl">Rol</label><select id="reg-role" class="fi fsel"><option value="Empleado">Empleado</option><option value="Gerente">Gerente</option><option value="Admin">Administrador</option></select></div>
+            <div class="fg"><label class="fl">Organización</label><input id="reg-org" class="fi" type="text" placeholder="CreativeHub" value="CreativeHub"></div>
+          </div>
           <button type="submit" class="btn btn-p" style="width:100%;justify-content:center;padding:10px;font-size:.85rem">Crear cuenta</button>
         </form>
         <div class="auth-switch" style="margin-top:16px">¿Ya tienes cuenta? <a onclick="showAuth('login')">Inicia sesión</a></div>

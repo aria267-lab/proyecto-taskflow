@@ -340,10 +340,10 @@ async function doLogin(e) {
 
 
 // ── REGISTRO ─────────────────────────────────────────────────
-function doRegister(e) {
+async function doRegister(e) {
   e.preventDefault();
   hideError('reg-err');
- 
+
   const name   = document.getElementById('reg-name').value.trim();
   const cedula = document.getElementById('reg-cedula').value.trim();
   const email  = document.getElementById('reg-email').value.trim();
@@ -352,79 +352,132 @@ function doRegister(e) {
   const role   = document.getElementById('reg-role').value;
   const org    = document.getElementById('reg-org').value.trim() || 'CreativeHub';
   const btn    = e.target.querySelector('button[type="submit"]');
- 
-  // Validaciones en orden
+  const errBox = document.getElementById('reg-err');
+
+  // ⭐ VALIDACIONES EN FRONTEND
   if (!name || !cedula || !email || !pass || !pass2) {
-    showError('reg-err', 'Todos los campos marcados con * son obligatorios.');
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ Todos los campos marcados con * son obligatorios.';
     return;
   }
+
   if (name.length < 2 || name.length > 120) {
-    showError('reg-err', 'El nombre debe tener entre 2 y 120 caracteres.');
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ El nombre debe tener entre 2 y 120 caracteres.';
     return;
   }
-  if (!validateCedula(cedula)) {
-    showError('reg-err', 'La cédula debe contener solo números y tener entre 6 y 10 dígitos.');
+
+  const cedulaClean = cedula.replace(/\D/g, '');
+  if (cedulaClean.length < 6 || cedulaClean.length > 10) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La cédula debe tener entre 6 y 10 dígitos.';
     return;
   }
+
   if (!validateEmail(email)) {
-    showError('reg-err', 'El formato del correo no es válido. Ej: usuario@dominio.com');
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ El formato del correo no es válido. Ej: usuario@dominio.com';
     return;
   }
-  if (!validatePassword(pass)) {
-    showError('reg-err', 'La contraseña debe tener mínimo 8 caracteres, al menos una letra y un número.');
+
+  // ⭐ VALIDAR CONTRASEÑA CON REQUISITOS ESTRICTOS
+  if (pass.length < 8) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La contraseña debe tener mínimo 8 caracteres.';
     return;
   }
+  if (!/[A-Z]/.test(pass)) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La contraseña debe contener al menos una mayúscula (A-Z).';
+    return;
+  }
+  if (!/[a-z]/.test(pass)) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La contraseña debe contener al menos una minúscula (a-z).';
+    return;
+  }
+  if (!/[0-9]/.test(pass)) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La contraseña debe contener al menos un número (0-9).';
+    return;
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]/.test(pass)) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ La contraseña debe contener al menos un carácter especial (!@#$%^&* etc).';
+    return;
+  }
+
   if (pass !== pass2) {
-    showError('reg-err', 'Las contraseñas no coinciden.');
+    errBox.style.display = 'block';
+    errBox.innerHTML = '⚠️ Las contraseñas no coinciden.';
     return;
   }
- 
+
   btn.disabled = true;
   btn.textContent = 'Creando cuenta...';
- 
-  // Verificar duplicados
-  if (findUserByEmail(email)) {
-    showError('reg-err', '❌ Este correo ya está registrado. ¿Olvidaste tu contraseña?');
+
+  try {
+    // ⭐ POST REAL A LA API BACKEND
+    const response = await fetch(BASE_URL + '/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: name,
+        email: email.toLowerCase(),
+        password: pass,
+        cedula: cedulaClean,
+        role: role,
+        organization: org,
+        phone: null,
+        empresa: null
+      })
+    }).then(r => r.json());
+
+    // ⭐ MANEJAR RESPUESTA
+    if (response.error) {
+      errBox.style.display = 'block';
+      if (typeof response.requirements === 'object') {
+        errBox.innerHTML = '❌ ' + response.error + '<br>' + response.requirements.join('<br>');
+      } else {
+        errBox.innerHTML = '❌ ' + response.error;
+      }
+      btn.disabled = false;
+      btn.textContent = 'Crear cuenta';
+      return;
+    }
+
+    if (!response.user || !response.access_token) {
+      errBox.style.display = 'block';
+      errBox.innerHTML = '❌ Error al crear la cuenta. Intenta de nuevo.';
+      btn.disabled = false;
+      btn.textContent = 'Crear cuenta';
+      return;
+    }
+
+    // ⭐ GUARDAR TOKENS Y USER EN LOCALSTORAGE
+    const user = response.user;
+    localStorage.setItem('tf_user', JSON.stringify(user));
+    localStorage.setItem('tf_access_token', response.access_token);
+    localStorage.setItem('tf_refresh_token', response.refresh_token);
+    localStorage.setItem('tf_login_time', Date.now().toString());
+
+    ST.user = user;
+    updateUserUI(user);
+    hideAuth();
+    toast('✓ ¡Bienvenido/a, ' + name.split(' ')[0] + '! Cuenta creada correctamente.', 's');
+
+    // Cargar datos del usuario
+    await loadUserData();
+    renderDash();
+
+  } catch (err) {
+    console.error('[doRegister] Error:', err.message);
+    errBox.style.display = 'block';
+    errBox.innerHTML = '❌ Error de conexión: ' + err.message;
+  } finally {
     btn.disabled = false;
     btn.textContent = 'Crear cuenta';
-    return;
   }
-  if (findUserByCedula(cedula)) {
-    showError('reg-err', '❌ Esta cédula ya está registrada en el sistema.');
-    btn.disabled = false;
-    btn.textContent = 'Crear cuenta';
-    return;
-  }
- 
-  // Crear usuario
-  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const newUser = {
-    id:       'local-' + Date.now(),
-    name,
-    cedula,
-    email,
-    password: pass,       // ⚠️ solo para pruebas locales
-    initials,
-    role,
-    org,
-    created_at: new Date().toISOString()
-  };
- 
-  const users = getUsers();
-  users.push(newUser);
-  saveUsers(users);
- 
-  // Iniciar sesión automáticamente
-  const sessionUser = { id: newUser.id, name, email, initials, role, org };
-  localStorage.setItem('tf_user', JSON.stringify(sessionUser));
-  ST.user = sessionUser;
-  updateUserUI({ full_name: name, initials, role, organization: org, email });
-  hideAuth();
-  toast('✓ ¡Cuenta creada! Bienvenido/a, ' + name.split(' ')[0], 's');
-  renderDash();
- 
-  btn.disabled = false;
-  btn.textContent = 'Crear cuenta';
 }
 
 // ── RECUPERAR CONTRASEÑA ─────────────────────────────────────

@@ -14,22 +14,72 @@ const { generateTokens, verifyRefresh } = require('../middlewares/auth');
 
 const SALT_ROUNDS = 10;
 
+/* ─── VALIDACIÓN DE CONTRASEÑA ──────────────────────────────────────── */
+const validatePassword = (password) => {
+  const errors = [];
+  if (password.length < 8) {
+    errors.push('Mínimo 8 caracteres');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Al menos una mayúscula (A-Z)');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('Al menos una minúscula (a-z)');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('Al menos un número (0-9)');
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('Al menos un carácter especial (!@#$%^&* etc)');
+  }
+  return errors;
+};
+
+/* ─── VALIDACIÓN DE CÉDULA ──────────────────────────────────────────── */
+const validateCedula = (cedula) => {
+  if (!cedula) return null; // Opcional
+  const cedulaClean = cedula.toString().replace(/\D/g, '');
+  if (cedulaClean.length < 6 || cedulaClean.length > 10) {
+    return 'La cédula debe tener entre 6 y 10 dígitos';
+  }
+  if (!/^\d{6,10}$/.test(cedulaClean)) {
+    return 'La cédula solo debe contener números';
+  }
+  return null;
+};
+
 /* ─── REGISTRO ──────────────────────────────────────────────────────── */
 // POST /api/register
-// Body: { full_name, email, password, role?, organization?, phone?, empresa? }
+// Body: { full_name, email, password, cedula?, role?, organization?, phone?, empresa? }
 router.post('/register', async (req, res) => {
-  const { full_name, email, password, role, organization, phone, empresa } = req.body;
+  const { full_name, email, password, cedula, role, organization, phone, empresa } = req.body;
 
-  // Validaciones
+  // ⭐ VALIDACIONES REQUERIDAS
   if (!full_name || !email || !password) {
     return res.status(400).json({ error: 'Nombre, email y contraseña son requeridos.' });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+
+  // ⭐ VALIDACIÓN DE CONTRASEÑA (mejorada)
+  const passwordErrors = validatePassword(password);
+  if (passwordErrors.length > 0) {
+    return res.status(400).json({
+      error: 'La contraseña debe cumplir con:',
+      requirements: passwordErrors
+    });
   }
+
+  // ⭐ VALIDACIÓN DE EMAIL
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRe.test(email)) {
     return res.status(400).json({ error: 'Formato de email inválido.' });
+  }
+
+  // ⭐ VALIDACIÓN DE CÉDULA
+  if (cedula) {
+    const cedulaError = validateCedula(cedula);
+    if (cedulaError) {
+      return res.status(400).json({ error: cedulaError });
+    }
   }
 
   try {
@@ -37,6 +87,17 @@ router.post('/register', async (req, res) => {
     const existing = await pool.query('SELECT id FROM profiles WHERE email = $1', [email]);
     if (existing.rows.length) {
       return res.status(409).json({ error: 'Ya existe una cuenta con ese email.' });
+    }
+
+    // Verificar cédula única (si se proporciona)
+    if (cedula) {
+      const cedulaExists = await pool.query(
+        'SELECT id FROM profiles WHERE cedula = $1',
+        [cedula.toString().replace(/\D/g, '')]
+      );
+      if (cedulaExists.rows.length) {
+        return res.status(409).json({ error: 'Ya existe una cuenta con esa cédula.' });
+      }
     }
 
     // Hash de la contraseña
@@ -55,11 +116,20 @@ router.post('/register', async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO profiles
-         (email, password_hash, full_name, initials, role, organization, phone, empresa)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       RETURNING id, email, full_name, initials, role, organization, phone, empresa, created_at`,
-      [email.toLowerCase().trim(), password_hash, full_name.trim(), initials,
-       safeRole, organization || 'CreativeHub', phone || null, empresa || null]
+         (email, password_hash, full_name, initials, role, organization, phone, empresa, cedula)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, email, full_name, initials, role, organization, phone, empresa, cedula, created_at`,
+      [
+        email.toLowerCase().trim(),
+        password_hash,
+        full_name.trim(),
+        initials,
+        safeRole,
+        organization || 'CreativeHub',
+        phone || null,
+        empresa || null,
+        cedula ? cedula.toString().replace(/\D/g, '') : null
+      ]
     );
 
     const user = rows[0];
@@ -83,8 +153,15 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       message: `¡Bienvenido/a ${user.full_name}! Cuenta creada correctamente.`,
-      user: { id: user.id, full_name: user.full_name, email: user.email,
-              initials: user.initials, role: user.role, organization: user.organization },
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        initials: user.initials,
+        role: user.role,
+        organization: user.organization,
+        cedula: user.cedula
+      },
       access_token:  access,
       refresh_token: refresh
     });
@@ -106,7 +183,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, email, password_hash, full_name, initials, role, organization, phone, empresa, is_active
+      `SELECT id, email, password_hash, full_name, initials, role, organization, phone, empresa, cedula, is_active
        FROM profiles WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
@@ -140,9 +217,17 @@ router.post('/login', async (req, res) => {
 
     res.json({
       message: `Sesión iniciada. ¡Bienvenido/a ${user.full_name}!`,
-      user: { id: user.id, full_name: user.full_name, email: user.email,
-              initials: user.initials, role: user.role, organization: user.organization,
-              phone: user.phone, empresa: user.empresa },
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        email: user.email,
+        initials: user.initials,
+        role: user.role,
+        organization: user.organization,
+        phone: user.phone,
+        empresa: user.empresa,
+        cedula: user.cedula
+      },
       access_token:  access,
       refresh_token: refresh
     });
