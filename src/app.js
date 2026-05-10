@@ -362,9 +362,9 @@ app.get('/api/dashboard/:profile_id', async (req, res) => {
       pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC')=DATE_TRUNC('week', (CURRENT_DATE-INTERVAL '7 days') AT TIME ZONE 'UTC')`, [pid])
     ]);
 
-    const seconds_today = todayH.rows[0]?.seconds || 0;
-    const seconds_this_week = thisWeekH.rows[0]?.seconds || 0;
-    const seconds_last_week = lastWeekH.rows[0]?.seconds || 0;
+    const seconds_today = parseInt(todayH.rows[0]?.seconds || 0);
+    const seconds_this_week = parseInt(thisWeekH.rows[0]?.seconds || 0);
+    const seconds_last_week = parseInt(lastWeekH.rows[0]?.seconds || 0);
 
     // Calcular % de cambio en productividad
     let productivity_change = 0;

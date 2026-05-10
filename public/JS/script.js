@@ -931,25 +931,28 @@ async function renderDash(){
       // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO EN DASHBOARD
       const todayHours = document.getElementById('d-today-hours');
       if(todayHours) {
-        const h = Math.floor(d.seconds_today / 3600);
-        const m = Math.floor((d.seconds_today % 3600) / 60);
+        const sec = parseInt(d.seconds_today) || 0;
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
         todayHours.textContent = `${h}h ${m}m`;
       }
 
       const weekHours = document.getElementById('d-week-hours');
       if(weekHours) {
-        const h = Math.floor(d.seconds_this_week / 3600);
-        const m = Math.floor((d.seconds_this_week % 3600) / 60);
+        const sec = parseInt(d.seconds_this_week) || 0;
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
         weekHours.textContent = `${h}h ${m}m`;
       }
 
       // ⭐ ACTUALIZAR INDICADOR DE PRODUCTIVIDAD EN DASHBOARD
       const prodSub = document.getElementById('d-productivity-sub');
       if(prodSub) {
-        const isUp = d.productivity_change >= 0;
+        const change = parseInt(d.productivity_change) || 0;
+        const isUp = change >= 0;
         const arrow = isUp ? '↑' : '↓';
         const trendClass = isUp ? 'up' : 'dn';
-        prodSub.innerHTML = `<span class="trend ${trendClass}">${arrow} ${Math.abs(d.productivity_change)}%</span> vs semana anterior`;
+        prodSub.innerHTML = `<span class="trend ${trendClass}">${arrow} ${Math.abs(change)}%</span> vs semana anterior`;
       }
 
       // ⭐ RENDERIZAR GRÁFICO DE PRODUCTIVIDAD SEMANAL CON DATOS REALES
@@ -989,17 +992,22 @@ async function renderDash(){
         notifList.innerHTML = notifs || '<div style="text-align:center;color:var(--t2);padding:12px;font-size:.78rem">Sin notificaciones</div>';
       }
 
-      // ⭐ TAREAS PENDIENTES CON CLICKEABLE
+      // ⭐ TODAS LAS TAREAS PENDIENTES
       const tb=document.getElementById('d-tbody');
-      if(tb && d.recent_tasks){
-        tb.innerHTML=d.recent_tasks.map(t=>`
-          <tr onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
-            <td class="td-p">${t.title}</td>
-            <td style="font-size:.75rem">${t.project_name||''}</td>
-            <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
-            <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
-            <td><span class="tag ${t.column_status==='progress'?'t-blue':'t-gray'}">${COL_NAME[t.column_status]||t.column_status}</span></td>
-          </tr>`).join('');
+      if(tb){
+        const pendingTasks = ST.tasks.filter(t => t.column_status !== 'done');
+        if(pendingTasks.length === 0) {
+          tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t2);padding:20px">Sin tareas pendientes</td></tr>';
+        } else {
+          tb.innerHTML = pendingTasks.map(t=>`
+            <tr onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
+              <td class="td-p">${t.title}</td>
+              <td style="font-size:.75rem">${t.project_name||''}</td>
+              <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
+              <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
+              <td><span class="tag ${t.column_status==='progress'?'t-blue':'t-gray'}">${COL_NAME[t.column_status]||t.column_status}</span></td>
+            </tr>`).join('');
+        }
       }
     } catch(ex){ console.warn('dashboard error', ex); }
   } else {
