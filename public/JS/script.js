@@ -1505,7 +1505,12 @@ async function doNewProj(e){
 
 function initHistoryFilters(){
   const select = document.getElementById('log-project-filter');
-  if(!select) return;
+  if(!select) {
+    console.warn('[initHistoryFilters] Select element not found');
+    return;
+  }
+
+  console.log('[initHistoryFilters] ST.projs:', ST.projs);
 
   // Limpiar opciones existentes (excepto la de "Todos")
   const options = select.querySelectorAll('option');
@@ -1517,11 +1522,13 @@ function initHistoryFilters(){
   if(ST.projs && ST.projs.length > 0) {
     ST.projs.forEach(proj => {
       const option = document.createElement('option');
-      option.value = proj.id;
-      option.textContent = proj.name || 'Sin nombre';
+      option.value = proj.id || proj.project_id;
+      option.textContent = proj.name || proj.proj_name || 'Sin nombre';
       select.appendChild(option);
     });
-    console.log(`[initHistoryFilters] ${ST.projs.length} proyectos cargados`);
+    console.log(`[initHistoryFilters] ${ST.projs.length} proyectos cargados en dropdown`);
+  } else {
+    console.warn('[initHistoryFilters] ST.projs está vacío o indefinido');
   }
 }
 
@@ -1659,48 +1666,66 @@ function exportLogToPDF(){
   element.innerHTML = html;
   element.style.padding = '20px';
 
-  // Usar html2pdf si está disponible, sino crear descarga de texto
-  if (typeof html2pdf !== 'undefined') {
-    html2pdf().set({
-      margin: 10,
-      filename: `historial-tiempo-${startDate}-${endDate}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { orientation: 'landscape' }
-    }).save(html);
-  } else {
-    // Fallback: Descargar como HTML imprimible
-    const doc = document.createElement('html');
-    doc.innerHTML = `<!DOCTYPE html>
-      <html>
-        <head>
-          <title>Historial de Tiempo</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f0f0f0; font-weight: bold; }
-            h2 { color: #333; }
-            p { color: #666; }
-          </style>
-        </head>
-        <body>
-          ${html}
-          <script>window.print();</script>
-        </body>
-      </html>`;
+  console.log('[exportLogToPDF] Iniciando exportación...', { html2pdf: typeof html2pdf });
 
-    const blob = new Blob([doc.documentElement.outerHTML], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `historial-tiempo-${startDate}-${endDate}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Usar html2pdf si está disponible
+  if (typeof html2pdf !== 'undefined') {
+    try {
+      html2pdf()
+        .set({
+          margin: 10,
+          filename: `historial-tiempo-${startDate}-${endDate}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+        })
+        .from(element)
+        .save();
+      console.log(`[exportLogToPDF] PDF generado exitosamente con ${filtered.length} registros`);
+      toast('PDF descargado correctamente', 's');
+    } catch (e) {
+      console.error('[exportLogToPDF] Error con html2pdf, usando fallback:', e);
+      downloadHTMLFallback();
+    }
+  } else {
+    console.warn('[exportLogToPDF] html2pdf no disponible, usando fallback HTML');
+    downloadHTMLFallback();
   }
 
-  toast('PDF exportado correctamente', 's');
-  console.log(`[exportLog] PDF exportado con ${filtered.length} registros`);
+  function downloadHTMLFallback() {
+    // Fallback: Descargar como HTML imprimible
+    const fullHtml = `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Historial de Tiempo</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f0f0f0; font-weight: bold; }
+          h2 { color: #333; }
+          p { color: #666; }
+        </style>
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>`;
+
+    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `historial-tiempo-${startDate}-${endDate}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast('HTML descargado correctamente (abre en navegador para convertir a PDF)', 's');
+    console.log(`[exportLogToPDF] HTML fallback descargado con ${filtered.length} registros`);
+  }
 }
 
 function renderLog(){
