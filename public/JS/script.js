@@ -897,16 +897,24 @@ async function tStop(){
 function renderTmrLog(){
   const el=document.getElementById('tmr-log');if(!el)return;
 
+  console.log('[renderTmrLog] ST.logs:', ST.logs);
+
   // ⭐ FILTRAR SOLO SESIONES DE HOY
   const today = new Date().toDateString();
   const todayLogs = (ST.logs || []).filter(l => {
+    if(!l.started_at) return false;
     const logDate = new Date(l.started_at).toDateString();
-    return logDate === today;
+    const match = logDate === today;
+    console.log('[renderTmrLog] Log:', {started_at: l.started_at, logDate, today, match});
+    return match;
   });
+
+  console.log('[renderTmrLog] todayLogs después filtro:', todayLogs);
 
   const items = todayLogs.slice(0,6);
 
   if(!items.length){
+    console.log('[renderTmrLog] Sin registros para hoy');
     el.innerHTML='<div style="color:var(--t2);font-size:.78rem;text-align:center;padding:12px">Sin registros hoy</div>';
     return;
   }
@@ -920,7 +928,9 @@ function renderTmrLog(){
   }
 
   el.innerHTML=items.map(l=>{
-    const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active?'activo…':'—');
+    // ⭐ CAMPO CORRECTO: duration_seconds (no duration_sec)
+    const dur = l.duration_seconds ? fmt(l.duration_seconds) : (l.is_active?'activo…':'—');
+    console.log('[renderTmrLog] Renderizando item:', {task: l.task_title, duration: l.duration_seconds, dur});
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)">
       <div><div style="font-size:.79rem;font-weight:600">${l.task_title||l.task||''}</div>
       <div style="font-size:.64rem;color:var(--t2)">${l.project_name||l.proj||''}</div></div>
