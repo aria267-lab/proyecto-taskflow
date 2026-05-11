@@ -771,18 +771,21 @@ function updateTmr(){
   const dh=document.getElementById('d-hours');if(dh&&ST.tSec>0){const m=Math.floor(ST.tSec/60);dh.textContent=Math.floor(m/60)+'h '+('0'+m%60).slice(-2)+'m';}
 }
 
-// ⭐ AUTOSAVE DEL CRONÓMETRO (cada 30 segundos)
-async function autoSaveTimer() {
+// ⭐ AUTOSAVE DEL CRONÓMETRO EN localStorage (cada 30 segundos)
+function autoSaveTimer() {
   if (ST.tRun && ST.tLogId && ST.user?.id) {
-    try {
-      console.log('[autoSaveTimer] 💾 Guardando estado del cronómetro...');
-      await API.patch('/api/tiempos/detener', {
-        profile_id: getEffectiveUserId() || ST.user?.id
-      });
-      console.log('[autoSaveTimer] ✅ Estado guardado');
-    } catch (ex) {
-      console.warn('[autoSaveTimer] No se pudo guardar, continuando...', ex.message);
-    }
+    const timerState = {
+      tLogId: ST.tLogId,
+      tProj: ST.tProj,
+      tTask: ST.tTask,
+      tSec: ST.tSec,
+      tRun: ST.tRun,
+      tPaused: ST.tPaused,
+      tSes: ST.tSes,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('tf_timer_checkpoint', JSON.stringify(timerState));
+    console.log('[autoSaveTimer] 💾 Estado del cronómetro guardado en localStorage');
   }
 }
 
@@ -790,7 +793,7 @@ async function autoSaveTimer() {
 function startTimerAutoSave() {
   if (window.timerAutoSaveInterval) clearInterval(window.timerAutoSaveInterval);
   window.timerAutoSaveInterval = setInterval(autoSaveTimer, 30000); // Cada 30 segundos
-  console.log('[startTimerAutoSave] ✅ Autosave del cronómetro iniciado');
+  console.log('[startTimerAutoSave] ✅ Autosave del cronómetro iniciado (cada 30s)');
 }
 
 // ⭐ DETENER AUTOSAVE DEL CRONÓMETRO
@@ -844,13 +847,29 @@ function tPause(){
 async function tStop(){
   clearInterval(ST.tInt); ST.tRun=false; ST.tPaused=false;
   stopTimerAutoSave();
+  localStorage.removeItem('tf_timer_checkpoint');
+
   if(ST.tSec>0 && ST.user?.id){
     try {
+      console.log('[tStop] Deteniendo cronómetro:', {tLogId: ST.tLogId, tSec: ST.tSec, userId: ST.user.id});
       const res = await API.patch('/api/tiempos/detener',{profile_id:getEffectiveUserId()||ST.user?.id});
+      console.log('[tStop] ✅ Respuesta del servidor:', res);
+
       toast('✓ Registro guardado: '+fmt(ST.tSec),'s');
+
+      // ⭐ RECARGAR TODOS LOS DATOS PARA REFLEJAR CAMBIOS
       const logs = await API.get('/api/tiempos?profile_id='+ST.user.id);
+      console.log('[tStop] Logs recargados:', logs);
       ST.logs = logs||[];
       renderTmrLog();
+
+      // Actualizar dashboard también
+      try {
+        await renderDash();
+        console.log('[tStop] ✅ Dashboard actualizado');
+      } catch(e) {
+        console.warn('[tStop] No se pudo actualizar dashboard:', e.message);
+      }
 
       // ⭐ REGISTRAR ACTIVIDAD
       const task = ST.tasks.find(t=>t.id===ST.tTask);
@@ -863,7 +882,10 @@ async function tStop(){
         project_id: ST.tProj,
         duration_formatted: fmt(ST.tSec)
       });
-    } catch(ex){ toast('Sesión guardada localmente','i'); }
+    } catch(ex){
+      console.error('[tStop] Error:', ex);
+      toast('Sesión guardada localmente','i');
+    }
   }
   ST.tSec=0; ST.tLogId=null; updateTmr();
   document.getElementById('t-s').style.display='';
