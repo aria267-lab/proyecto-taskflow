@@ -351,8 +351,9 @@ app.patch('/api/notificaciones/:id/leer', verifyToken, async (req, res) => {
 app.get('/api/dashboard/:profile_id', async (req, res) => {
   const pid = req.params.profile_id;
   try {
-    const [ap, pt, hp, tm, rt, todayH, thisWeekH, lastWeekH] = await Promise.all([
+    const [ap, pm_count, pt, hp, tm, rt, todayH, thisWeekH, lastWeekH] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM projects p JOIN project_members pm ON pm.project_id=p.id WHERE pm.profile_id=$1 AND p.status='Activo'`, [pid]),
+      pool.query(`SELECT COUNT(*) FROM projects WHERE created_by=$1 AND DATE_TRUNC('month', created_at AT TIME ZONE 'UTC')=DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND priority='Alta' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT tl.*,t.title AS task_title,p.name AS project_name,EXTRACT(EPOCH FROM (NOW()-tl.started_at))::INTEGER AS elapsed_seconds FROM time_logs tl JOIN tasks t ON t.id=tl.task_id JOIN projects p ON p.id=tl.project_id WHERE tl.profile_id=$1 AND tl.is_active=true LIMIT 1`, [pid]),
@@ -376,6 +377,7 @@ app.get('/api/dashboard/:profile_id', async (req, res) => {
 
     res.json({
       active_projects: parseInt(ap.rows[0]?.count || 0),
+      projects_new_this_month: parseInt(pm_count.rows[0]?.count || 0),
       pending_tasks: parseInt(pt.rows[0]?.count || 0),
       high_priority_tasks: parseInt(hp.rows[0]?.count || 0),
       active_timer: tm.rows[0] || null,

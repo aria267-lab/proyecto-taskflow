@@ -1198,8 +1198,14 @@ async function renderDash(){
       const uid4 = getEffectiveUserId();
       if(!uid4 || String(uid4).startsWith('local-')) throw new Error('local user');
       const d=await API.get('/api/dashboard/'+uid4);
+
+      // ⭐ PROYECTOS ACTIVOS
       const dp=document.getElementById('d-projs');if(dp)dp.textContent=d.active_projects;
+      const dpm=document.getElementById('d-projs-month');if(dpm)dpm.textContent=`↑ ${d.projects_new_this_month || 0}`;
+
+      // ⭐ TAREAS PENDIENTES
       const dt=document.getElementById('d-tasks');if(dt)dt.textContent=d.pending_tasks;
+      const dhp=document.getElementById('d-high-priority');if(dhp)dhp.textContent=d.high_priority_tasks || 0;
 
       // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO EN DASHBOARD
       const todayHours = document.getElementById('d-today-hours');
