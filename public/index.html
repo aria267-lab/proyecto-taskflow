@@ -7,6 +7,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="CSS/style.css">
 <link rel="stylesheet" href="CSS/assistant.css">
+<style>
+  /* ⭐ FIX: Ocultar autofill del navegador en barra de búsqueda */
+  #s-input {
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+  #s-input:autofill,
+  #s-input:autofill:hover,
+  #s-input:autofill:focus,
+  #s-input:autofill:active {
+    -webkit-autofill-color: transparent !important;
+    -webkit-text-fill-color: var(--t1) !important;
+    background-color: transparent !important;
+    box-shadow: 0 0 0 30px transparent inset !important;
+  }
+</style>
 </head>
 <body>
 <div id="toast-wrap"></div>
@@ -218,7 +234,7 @@
       <div class="tb-title" id="tb-title">Dashboard</div>
       <div class="search-wrap" style="position:relative">
         <span class="search-ico">🔍</span>
-        <input id="s-input" class="search" type="text" placeholder="Busca tu proyecto" style="width:200px">
+        <input id="s-input" class="search" type="text" placeholder="Busca tu proyecto" autocomplete="off" style="width:200px; background-color: transparent !important;" value="">
         <div id="search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--s0);border:1px solid var(--bdr);border-radius:var(--r);max-height:300px;overflow-y:auto;z-index:999;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,.1)">
           <div id="search-results" style="max-height:300px;overflow-y:auto"></div>
         </div>
