@@ -1748,9 +1748,23 @@ renderNotif();
 (async function init(){
   initKanbanDrop();
 
-  // ⭐ LIMPIAR BARRA DE BÚSQUEDA
+  // ⭐ LIMPIAR BARRA DE BÚSQUEDA (ocultar autofill)
   const searchInput = document.getElementById('s-input');
-  if(searchInput) searchInput.value = '';
+  if(searchInput) {
+    searchInput.value = '';
+    // Limpiar también cuando reciba focus
+    searchInput.addEventListener('focus', (e) => {
+      if(e.target.value) {
+        e.target.value = '';
+      }
+    });
+    // Limpiar periódicamente por si el navegador intenta re-llenar
+    setInterval(() => {
+      if(searchInput.value && searchInput !== document.activeElement) {
+        searchInput.value = '';
+      }
+    }, 500);
+  }
 
   // ⭐ MOSTRAR PANTALLA DE LOGIN POR DEFECTO
   const authOverlay = document.getElementById('auth-overlay');
