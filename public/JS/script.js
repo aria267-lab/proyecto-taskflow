@@ -743,8 +743,44 @@ function nav(el,pageId){
   document.getElementById('tb-title').textContent=TITLES[pageId]||pageId;
   window.scrollTo(0,0);
   if(pageId==='dashboard')  renderDash();
-  if(pageId==='projects')   renderProjs();
-  if(pageId==='kanban')     renderKanban();
+  if(pageId==='projects') {
+    // ⭐ RECARGAR PROYECTOS CUANDO NAVEGAS A PROJECTS
+    (async () => {
+      try {
+        if(ST.user?.id) {
+          console.log('[nav projects] Recargando proyectos...');
+          const projs = await API.get('/api/proyectos');
+          ST.projs = projs || [];
+          console.log('[nav projects] Proyectos recargados:', ST.projs);
+          renderProjs();
+        }
+      } catch(e) {
+        console.warn('[nav projects] Error recargando proyectos:', e.message);
+        renderProjs();
+      }
+    })();
+  }
+  if(pageId==='kanban') {
+    // ⭐ RECARGAR DATOS CUANDO NAVEGAS A KANBAN
+    (async () => {
+      try {
+        if(ST.user?.id) {
+          console.log('[nav kanban] Recargando proyectos y tareas...');
+          const [projs, tasks] = await Promise.all([
+            API.get('/api/proyectos'),
+            API.get('/api/tareas')
+          ]);
+          ST.projs = projs || [];
+          ST.tasks = tasks || [];
+          console.log('[nav kanban] Datos recargados');
+          renderKanban();
+        }
+      } catch(e) {
+        console.warn('[nav kanban] Error recargando datos:', e.message);
+        renderKanban();
+      }
+    })();
+  }
   if(pageId==='timelog')    renderLog();
   if(pageId==='reports')    renderRep('week');
   if(pageId==='timer') {

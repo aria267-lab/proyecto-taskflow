@@ -81,24 +81,48 @@ app.patch('/api/perfiles/:id/desactivar', verifyToken, authorize(['Admin']), asy
 });
 
 /* PROYECTOS */
-app.get('/api/proyectos', async (req, res) => {
+app.get('/api/proyectos', verifyToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT p.*,
         (SELECT json_agg(json_build_object('id',pf.id,'full_name',pf.full_name,'initials',pf.initials,'role',pm.role))
          FROM project_members pm JOIN profiles pf ON pf.id=pm.profile_id WHERE pm.project_id=p.id) AS members
-      FROM projects p ORDER BY p.created_at DESC`);
+      FROM projects p
+      WHERE 1=1`;
+
+    const params = [];
+
+    // Role-based filtering: Empleados only see projects they're members of
+    if (req.user.role === 'Empleado') {
+      query += ` AND p.id IN (SELECT project_id FROM project_members WHERE profile_id = $1)`;
+      params.push(req.user.id);
+    }
+    // Admin and Gerente see all projects
+
+    query += ` ORDER BY p.created_at DESC`;
+
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/proyectos/:id', async (req, res) => {
+app.get('/api/proyectos/:id', verifyToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT p.*,
         (SELECT json_agg(json_build_object('id',pf.id,'full_name',pf.full_name,'initials',pf.initials,'role',pm.role))
          FROM project_members pm JOIN profiles pf ON pf.id=pm.profile_id WHERE pm.project_id=p.id) AS members
-      FROM projects p WHERE p.id=$1`, [req.params.id]);
+      FROM projects p WHERE p.id=$1`;
+
+    const params = [req.params.id];
+
+    // Empleados can only view projects they're members of
+    if (req.user.role === 'Empleado') {
+      query += ` AND p.id IN (SELECT project_id FROM project_members WHERE profile_id = $2)`;
+      params.push(req.user.id);
+    }
+
+    const { rows } = await pool.query(query, params);
     if (!rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -218,6 +242,39 @@ app.put('/api/tareas/:id', verifyToken, async (req, res) => {
       [title,description,column_status,priority,progress,due_date,due_date_iso,assigned_to,req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Tarea no encontrada.' });
+
+    const task = rows[0];
+    const projectId = task.project_id;
+
+    // ⭐ AUTO-COMPLETE: Si todas las tareas del proyecto están en 'done', cambiar proyecto a 'Completado'
+    if (column_status === 'done') {
+      try {
+        const { rows: tasksCount } = await pool.query(
+          `SELECT COUNT(*) as total,
+                  SUM(CASE WHEN column_status='done' THEN 1 ELSE 0 END) as done
+           FROM tasks WHERE project_id=$1`,
+          [projectId]
+        );
+
+        if (tasksCount.length > 0) {
+          const row = tasksCount[0];
+          const total = parseInt(row.total) || 0;
+          const done = parseInt(row.done) || 0;
+
+          // Si todas las tareas están completadas, cambiar proyecto a Completado
+          if (total > 0 && total === done) {
+            await pool.query(
+              `UPDATE projects SET status='Completado', updated_at=NOW() WHERE id=$1`,
+              [projectId]
+            );
+            console.log(`[AUTO-COMPLETE] ✅ Proyecto ${projectId} marcado como Completado (${done}/${total} tareas)`);
+          }
+        }
+      } catch (countErr) {
+        console.error('[AUTO-COMPLETE ERROR]', countErr.message);
+      }
+    }
+
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -235,6 +292,39 @@ app.patch('/api/tareas/:id/mover', verifyToken, async (req, res) => {
       [column_status, progreso, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Tarea no encontrada.' });
+
+    const task = rows[0];
+    const projectId = task.project_id;
+
+    // ⭐ AUTO-COMPLETE: Si todas las tareas del proyecto están en 'done', cambiar proyecto a 'Completado'
+    if (column_status === 'done') {
+      try {
+        const { rows: tasksCount } = await pool.query(
+          `SELECT COUNT(*) as total,
+                  SUM(CASE WHEN column_status='done' THEN 1 ELSE 0 END) as done
+           FROM tasks WHERE project_id=$1`,
+          [projectId]
+        );
+
+        if (tasksCount.length > 0) {
+          const row = tasksCount[0];
+          const total = parseInt(row.total) || 0;
+          const done = parseInt(row.done) || 0;
+
+          // Si todas las tareas están completadas, cambiar proyecto a Completado
+          if (total > 0 && total === done) {
+            await pool.query(
+              `UPDATE projects SET status='Completado', updated_at=NOW() WHERE id=$1`,
+              [projectId]
+            );
+            console.log(`[AUTO-COMPLETE] ✅ Proyecto ${projectId} marcado como Completado (${done}/${total} tareas)`);
+          }
+        }
+      } catch (countErr) {
+        console.error('[AUTO-COMPLETE ERROR]', countErr.message);
+      }
+    }
+
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
