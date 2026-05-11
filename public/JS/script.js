@@ -337,6 +337,19 @@ async function doLogout(e) {
   // ⭐ DETENER CUALQUIER TIMER ACTIVO
   if (window.timerInterval) clearInterval(window.timerInterval);
 
+  // ⭐ OCULTAR BARRA LATERAL
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.style.display = 'none';
+  }
+
+  // ⭐ LIMPIAR BÚSQUEDA
+  const searchInput = document.getElementById('s-input');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.placeholder = 'Busca tu proyecto';
+  }
+
   // ⭐ MOSTRAR PANTALLA DE LOGIN
   const authOverlay = document.getElementById('auth-overlay');
   if (authOverlay) {
