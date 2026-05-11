@@ -794,7 +794,26 @@ function nav(el,pageId){
       }
     })();
   }
-  if(pageId==='timelog')    renderLog();
+  if(pageId==='timelog') {
+    // ⭐ RECARGAR LOGS Y INICIALIZAR FILTROS CUANDO NAVEGAS A TIMELOG
+    (async () => {
+      try {
+        const uid = getEffectiveUserId();
+        if(uid && ST.user?.id) {
+          console.log('[nav timelog] Recargando logs...');
+          const logs = await API.get('/api/tiempos?profile_id='+uid);
+          ST.logs = logs || [];
+          console.log('[nav timelog] Logs recargados:', ST.logs);
+          initHistoryFilters();
+          renderLog();
+        }
+      } catch(e) {
+        console.warn('[nav timelog] Error recargando logs:', e.message);
+        initHistoryFilters();
+        renderLog();
+      }
+    })();
+  }
   if(pageId==='reports')    renderRep('week');
   if(pageId==='timer') {
     // ⭐ RECARGAR LOGS CUANDO NAVEGAS A TIMER
@@ -1480,6 +1499,210 @@ async function doNewProj(e){
 /* ══════════════════════════════════════════════
    HISTORIAL DE TIEMPO
 ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   HISTORIAL - FILTRADO Y EXPORTACIÓN
+══════════════════════════════════════════════ */
+
+function initHistoryFilters(){
+  const select = document.getElementById('log-project-filter');
+  if(!select) return;
+
+  // Limpiar opciones existentes (excepto la de "Todos")
+  const options = select.querySelectorAll('option');
+  options.forEach((opt, idx) => {
+    if(idx > 0) opt.remove(); // Mantener la primera opción (Todos los proyectos)
+  });
+
+  // Añadir proyectos desde ST.projs
+  if(ST.projs && ST.projs.length > 0) {
+    ST.projs.forEach(proj => {
+      const option = document.createElement('option');
+      option.value = proj.id;
+      option.textContent = proj.name || 'Sin nombre';
+      select.appendChild(option);
+    });
+    console.log(`[initHistoryFilters] ${ST.projs.length} proyectos cargados`);
+  }
+}
+
+function filterAndRenderLog(){
+  const startDate = document.getElementById('log-date-start')?.value;
+  const endDate = document.getElementById('log-date-end')?.value;
+  const projectFilter = document.getElementById('log-project-filter')?.value;
+
+  console.log(`[filterLog] Filtrando: ${startDate} a ${endDate}, proyecto: ${projectFilter}`);
+
+  // Convertir fechas a timestamps para comparación
+  const start = startDate ? new Date(startDate).getTime() : 0;
+  const end = endDate ? new Date(endDate).getTime() + 86400000 : Date.now(); // +1 día para incluir el día final completo
+
+  // Filtrar logs
+  const filtered = ST.logs.filter(log => {
+    const logDate = new Date(log.started_at).getTime();
+
+    // Filtro de fecha
+    if (logDate < start || logDate > end) return false;
+
+    // Filtro de proyecto
+    if (projectFilter && log.project_id !== projectFilter) return false;
+
+    return true;
+  });
+
+  console.log(`[filterLog] ${filtered.length} registros después del filtro`);
+
+  // Renderizar logs filtrados
+  const tb = document.getElementById('log-tbody');
+  if (!tb) return;
+
+  if (!filtered.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Sin registros en este período</td></tr>';
+    const tot = document.getElementById('log-tot');
+    if (tot) tot.textContent = '0 registros';
+    return;
+  }
+
+  tb.innerHTML = filtered.map(l => {
+    const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active ? 'activo' : '—');
+    const fecha = l.started_at ? new Date(l.started_at).toLocaleDateString('es-VE', {day: '2-digit', month: 'short', year: 'numeric'}) : '—';
+    const inicio = l.started_at ? new Date(l.started_at).toLocaleTimeString('es-VE', {hour: '2-digit', minute: '2-digit'}) : '—';
+    const fin = l.ended_at ? new Date(l.ended_at).toLocaleTimeString('es-VE', {hour: '2-digit', minute: '2-digit'}) : '—';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:.7rem">${fecha}</td>
+      <td class="td-p">${l.task_title || l.task || ''}</td>
+      <td><span class="tag t-blue">${(l.project_name || l.proj || '').split(' ')[0]}</span></td>
+      <td style="font-family:var(--mono);font-size:.7rem">${inicio}</td>
+      <td style="font-family:var(--mono);font-size:.7rem">${fin}</td>
+      <td><span style="font-family:var(--mono);font-size:.78rem;font-weight:700;color:${l.is_active ? 'var(--blue)' : 'var(--t1)'}">${dur}${l.is_active ? ' ●' : ''}</span></td>
+      <td><button class="btn btn-g btn-xs" onclick="toast('Sin cambios permitidos en historial','i')">Ver</button></td>
+    </tr>`;
+  }).join('');
+
+  // Calcular total de horas
+  const totalSecs = filtered.reduce((sum, log) => sum + (log.duration_sec || 0), 0);
+  const tot = document.getElementById('log-tot');
+  if (tot) tot.textContent = `${filtered.length} registros • Total: ${fmt(totalSecs)}`;
+}
+
+function exportLogToPDF(){
+  const startDate = document.getElementById('log-date-start')?.value;
+  const endDate = document.getElementById('log-date-end')?.value;
+  const projectFilter = document.getElementById('log-project-filter')?.value;
+
+  // Obtener logs filtrados
+  const start = startDate ? new Date(startDate).getTime() : 0;
+  const end = endDate ? new Date(endDate).getTime() + 86400000 : Date.now();
+
+  const filtered = ST.logs.filter(log => {
+    const logDate = new Date(log.started_at).getTime();
+    if (logDate < start || logDate > end) return false;
+    if (projectFilter && log.project_id !== projectFilter) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    toast('No hay datos para exportar en este período', 'w');
+    return;
+  }
+
+  // Crear tabla HTML para PDF
+  let html = `
+    <h2>Historial de Tiempo</h2>
+    <p>Período: ${startDate} a ${endDate}</p>
+    <table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f0f0f0;">
+          <th>Fecha</th>
+          <th>Tarea</th>
+          <th>Proyecto</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Duración</th>
+          <th>Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  let totalSecs = 0;
+  filtered.forEach(log => {
+    const fecha = log.started_at ? new Date(log.started_at).toLocaleDateString('es-VE') : '—';
+    const inicio = log.started_at ? new Date(log.started_at).toLocaleTimeString('es-VE') : '—';
+    const fin = log.ended_at ? new Date(log.ended_at).toLocaleTimeString('es-VE') : '—';
+    const dur = log.duration_sec ? fmt(log.duration_sec) : '—';
+    const user = log.user_name || '—';
+
+    html += `
+      <tr>
+        <td>${fecha}</td>
+        <td>${log.task_title || log.task || '—'}</td>
+        <td>${log.project_name || log.proj || '—'}</td>
+        <td>${inicio}</td>
+        <td>${fin}</td>
+        <td>${dur}</td>
+        <td>${user}</td>
+      </tr>
+    `;
+
+    totalSecs += log.duration_sec || 0;
+  });
+
+  html += `
+      </tbody>
+    </table>
+    <p style="margin-top:20px;"><strong>Total período: ${fmt(totalSecs)}</strong></p>
+    <p style="margin-top:10px;font-size:0.9rem;color:#666;">Generado: ${new Date().toLocaleString('es-VE')}</p>
+  `;
+
+  // Descargar como PDF usando html2pdf
+  const element = document.createElement('div');
+  element.innerHTML = html;
+  element.style.padding = '20px';
+
+  // Usar html2pdf si está disponible, sino crear descarga de texto
+  if (typeof html2pdf !== 'undefined') {
+    html2pdf().set({
+      margin: 10,
+      filename: `historial-tiempo-${startDate}-${endDate}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { orientation: 'landscape' }
+    }).save(html);
+  } else {
+    // Fallback: Descargar como HTML imprimible
+    const doc = document.createElement('html');
+    doc.innerHTML = `<!DOCTYPE html>
+      <html>
+        <head>
+          <title>Historial de Tiempo</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            h2 { color: #333; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          ${html}
+          <script>window.print();</script>
+        </body>
+      </html>`;
+
+    const blob = new Blob([doc.documentElement.outerHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-tiempo-${startDate}-${endDate}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  toast('PDF exportado correctamente', 's');
+  console.log(`[exportLog] PDF exportado con ${filtered.length} registros`);
+}
+
 function renderLog(){
   const tb=document.getElementById('log-tbody');if(!tb)return;
   if(!ST.logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Sin registros de tiempo aún</td></tr>';return}

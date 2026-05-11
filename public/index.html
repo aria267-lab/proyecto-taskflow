@@ -463,12 +463,12 @@
       <div class="pg">
         <div class="pg-hdr mb16"><h2>Historial de tiempo</h2><p>Registro completo de horas por tarea y proyecto.</p></div>
         <div class="row g8 mb16 wrap ai-c">
-          <input class="fi" type="date" value="2026-03-01" style="width:148px">
+          <input id="log-date-start" class="fi" type="date" value="2026-03-01" style="width:148px">
           <span style="font-size:.78rem;color:var(--t2)">—</span>
-          <input class="fi" type="date" value="2026-03-22" style="width:148px">
-          <select class="fi fsel" style="width:188px"><option>Todos los proyectos</option><option>TaskFlow MVP</option><option>CreativeHub Intranet</option></select>
-          <button class="btn btn-p btn-sm" onclick="renderLog()">Filtrar</button>
-          <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="toast('PDF generado','s')">↓ Exportar PDF</button>
+          <input id="log-date-end" class="fi" type="date" value="2026-03-22" style="width:148px">
+          <select id="log-project-filter" class="fi fsel" style="width:188px"><option value="">Todos los proyectos</option></select>
+          <button class="btn btn-p btn-sm" onclick="filterAndRenderLog()">Filtrar</button>
+          <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="exportLogToPDF()">↓ Exportar PDF</button>
         </div>
         <div class="card">
           <table class="tbl"><thead><tr><th>Fecha</th><th>Tarea</th><th>Proyecto</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Acción</th></tr></thead><tbody id="log-tbody"></tbody></table>
