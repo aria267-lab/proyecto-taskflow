@@ -747,7 +747,24 @@ function nav(el,pageId){
   if(pageId==='kanban')     renderKanban();
   if(pageId==='timelog')    renderLog();
   if(pageId==='reports')    renderRep('week');
-  if(pageId==='timer')      renderTmrLog();
+  if(pageId==='timer') {
+    // ⭐ RECARGAR LOGS CUANDO NAVEGAS A TIMER
+    (async () => {
+      try {
+        const uid = getEffectiveUserId();
+        if(uid && ST.user?.id) {
+          console.log('[nav timer] Recargando logs...');
+          const logs = await API.get('/api/tiempos?profile_id='+uid);
+          ST.logs = logs||[];
+          console.log('[nav timer] Logs recargados:', ST.logs);
+          renderTmrLog();
+        }
+      } catch(e) {
+        console.warn('[nav timer] Error recargando logs:', e.message);
+        renderTmrLog();
+      }
+    })();
+  }
   if(pageId==='profile')    renderProfile();
   if(pageId==='project-detail') renderProjDetail();
   if(pageId==='task-detail') renderTaskDetail();
@@ -1770,9 +1787,25 @@ renderNotif();
             localStorage.setItem('tf_user', JSON.stringify(ST.user));
             updateUserUI(ST.user);
           }
+          console.log('[init] Cargando todos los datos desde BD...');
           await loadAll();
+          console.log('[init] ✅ Datos cargados. ST.logs:', ST.logs);
         } catch (ex) {
           console.warn('[init] BD no disponible, usando datos cacheados', ex.message);
+        }
+
+        // ⭐ RENDERIZAR DESPUÉS DE CARGAR DATOS
+        try {
+          console.log('[init] Renderizando componentes...');
+          renderDash();
+          renderKanban();
+          renderLog();
+          renderRep('week');
+          renderTmrLog();
+          updateTmr();
+          console.log('[init] ✅ Todos los componentes renderizados');
+        } catch (ex) {
+          console.error('[init] Error renderizando:', ex.message);
         }
       } else {
         // ❌ TOKEN INVÁLIDO - Mostrar login
@@ -1783,18 +1816,19 @@ renderNotif();
       console.warn('[init] Error validando token:', ex.message);
       doLogout();
     }
-  }
-
-  // ⭐ RENDERIZAR SIEMPRE (para ambos casos: login o dashboard)
-  try {
-    renderDash();
-    renderKanban();
-    renderLog();
-    renderRep('week');
-    renderTmrLog();
-    updateTmr();
-  } catch (ex) {
-    console.log('[init] No se pudo renderizar (usuario no logueado)');
+  } else {
+    // ⭐ SIN SESIÓN - RENDERIZAR PÁGINA DE LOGIN
+    try {
+      console.log('[init] Sin sesión guardada, renderizando login');
+      renderDash();
+      renderKanban();
+      renderLog();
+      renderRep('week');
+      renderTmrLog();
+      updateTmr();
+    } catch (ex) {
+      console.log('[init] No se pudo renderizar (usuario no logueado)');
+    }
   }
 })();
 
