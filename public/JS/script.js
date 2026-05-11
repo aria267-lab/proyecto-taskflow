@@ -275,7 +275,7 @@ async function logActivity(event, entityType, entityId, payload = {}) {
 // ════════════════════════════════════════════
 // LOGOUT - CERRAR SESIÓN
 // ════════════════════════════════════════════
-function doLogout(e) {
+async function doLogout(e) {
   // ⭐ PREVENIR COMPORTAMIENTO POR DEFECTO
   if (e && typeof e.preventDefault === 'function') {
     e.preventDefault();
@@ -283,6 +283,18 @@ function doLogout(e) {
   }
 
   console.log('[doLogout] 🚪 Iniciando cierre de sesión...');
+
+  // ⭐ DETENER Y GUARDAR CRONÓMETRO SI ESTÁ ACTIVO
+  if (ST.tRun || ST.tPaused) {
+    console.log('[doLogout] ⏱️ Cronómetro activo - guardando antes de cerrar sesión...');
+    await tStop();
+  }
+
+  // ⭐ DETENER AUTOSAVE DEL CRONÓMETRO
+  if (window.timerAutoSaveInterval) {
+    clearInterval(window.timerAutoSaveInterval);
+    window.timerAutoSaveInterval = null;
+  }
 
   // ⭐ LIMPIAR TODOS LOS DATOS DE SESIÓN
   localStorage.clear();  // Limpiar TODO localStorage
@@ -299,9 +311,14 @@ function doLogout(e) {
     logs: [],
     profiles: [],
     mini: false,
+    tRun: false,
+    tPaused: false,
+    tSec: 0,
+    tInt: null,
+    tSes: 0,
+    tLogId: null,
     tProj: null,
     tTask: null,
-    tLogId: null,
     msgInput: '',
     dragId: null,
     currentTaskId: null,
@@ -662,14 +679,16 @@ async function loadAll(){
     if(ST.user?.id && uid2 && !String(uid2).startsWith('local-')){
       const logs = await API.get('/api/tiempos?profile_id='+uid2);
       ST.logs = logs||[];
-      // Restaurar cronómetro activo si existía
+      // Restaurar cronómetro activo si existía (solo si NO tiene end_time)
       const activo = await API.get('/api/tiempos/activo/'+uid2);
-      if(activo){
+      if(activo && !activo.end_time){
         ST.tLogId = activo.id;
         ST.tProj  = activo.project_id;
         ST.tTask  = activo.task_id;
         ST.tSec   = Math.floor((Date.now()-new Date(activo.started_at))/1000);
         tResume();
+        startTimerAutoSave();
+        console.log('[loadAll] ✅ Cronómetro activo restaurado y autosave iniciado');
       }
     }
     populateTimerSelects();
@@ -752,6 +771,37 @@ function updateTmr(){
   const dh=document.getElementById('d-hours');if(dh&&ST.tSec>0){const m=Math.floor(ST.tSec/60);dh.textContent=Math.floor(m/60)+'h '+('0'+m%60).slice(-2)+'m';}
 }
 
+// ⭐ AUTOSAVE DEL CRONÓMETRO (cada 30 segundos)
+async function autoSaveTimer() {
+  if (ST.tRun && ST.tLogId && ST.user?.id) {
+    try {
+      console.log('[autoSaveTimer] 💾 Guardando estado del cronómetro...');
+      await API.patch('/api/tiempos/detener', {
+        profile_id: getEffectiveUserId() || ST.user?.id
+      });
+      console.log('[autoSaveTimer] ✅ Estado guardado');
+    } catch (ex) {
+      console.warn('[autoSaveTimer] No se pudo guardar, continuando...', ex.message);
+    }
+  }
+}
+
+// ⭐ INICIAR AUTOSAVE DEL CRONÓMETRO
+function startTimerAutoSave() {
+  if (window.timerAutoSaveInterval) clearInterval(window.timerAutoSaveInterval);
+  window.timerAutoSaveInterval = setInterval(autoSaveTimer, 30000); // Cada 30 segundos
+  console.log('[startTimerAutoSave] ✅ Autosave del cronómetro iniciado');
+}
+
+// ⭐ DETENER AUTOSAVE DEL CRONÓMETRO
+function stopTimerAutoSave() {
+  if (window.timerAutoSaveInterval) {
+    clearInterval(window.timerAutoSaveInterval);
+    window.timerAutoSaveInterval = null;
+    console.log('[stopTimerAutoSave] ✅ Autosave detenido');
+  }
+}
+
 function tResume(){
   if(ST.tRun)return;
   ST.tRun=true; ST.tPaused=false; ST.tSes++;
@@ -759,6 +809,7 @@ function tResume(){
   document.getElementById('t-p').style.display='';
   document.getElementById('t-x').style.display='';
   ST.tInt=setInterval(()=>{ST.tSec++;updateTmr()},1000);
+  startTimerAutoSave();
 }
 
 async function tStart(){
@@ -775,6 +826,7 @@ async function tStart(){
     ST.tLogId = res.id;
     ST.tSes++;
     tResume();
+    startTimerAutoSave();
     toast('⏱ Cronómetro iniciado','i');
   } catch(ex){ toast('Error iniciando cronómetro','e'); }
 }
@@ -782,6 +834,7 @@ async function tStart(){
 function tPause(){
   if(!ST.tRun)return;
   clearInterval(ST.tInt); ST.tRun=false; ST.tPaused=true;
+  stopTimerAutoSave();
   document.getElementById('t-s').style.display='';
   document.getElementById('t-s').textContent='▶';
   document.getElementById('t-p').style.display='none';
@@ -790,6 +843,7 @@ function tPause(){
 
 async function tStop(){
   clearInterval(ST.tInt); ST.tRun=false; ST.tPaused=false;
+  stopTimerAutoSave();
   if(ST.tSec>0 && ST.user?.id){
     try {
       const res = await API.patch('/api/tiempos/detener',{profile_id:getEffectiveUserId()||ST.user?.id});
