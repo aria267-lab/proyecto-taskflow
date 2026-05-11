@@ -275,22 +275,86 @@ async function logActivity(event, entityType, entityId, payload = {}) {
 // ════════════════════════════════════════════
 // LOGOUT - CERRAR SESIÓN
 // ════════════════════════════════════════════
-function doLogout() {
-  localStorage.removeItem('tf_user');
-  localStorage.removeItem('tf_access_token');
-  localStorage.removeItem('tf_refresh_token');
-  localStorage.removeItem('tf_login_attempts');
+function doLogout(e) {
+  // ⭐ PREVENIR COMPORTAMIENTO POR DEFECTO
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 
-  // Limpiar estado global
-  ST = { user: null, projs: [], tasks: [], mini: false, tProj: null, tTask: null, msgInput: '' };
-  PREFS = { alto_contraste: false, fuente_dyslexic: false, modo_enfoque: false, tamano_fuente: 'normal', espaciado_letras: 'normal', indicadores_foco: true };
+  console.log('[doLogout] 🚪 Iniciando cierre de sesión...');
 
-  // Mostrar pantalla de login
-  document.getElementById('auth-overlay').style.display = 'flex';
-  showAuth('login');
+  // ⭐ LIMPIAR TODOS LOS DATOS DE SESIÓN
+  localStorage.clear();  // Limpiar TODO localStorage
 
-  toast('Sesión cerrada correctamente','s');
-  console.log('[doLogout] ✅ Sesión cerrada');
+  // Asegurar que se remuevan específicamente
+  const keysToRemove = ['tf_user', 'tf_access_token', 'tf_refresh_token', 'tf_login_attempts', 'tf_login_time', 'tf_prefs'];
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+
+  // ⭐ LIMPIAR ESTADO GLOBAL COMPLETAMENTE
+  window.ST = {
+    user: null,
+    projs: [],
+    tasks: [],
+    logs: [],
+    profiles: [],
+    mini: false,
+    tProj: null,
+    tTask: null,
+    tLogId: null,
+    msgInput: '',
+    dragId: null,
+    currentTaskId: null,
+    currentProjId: null
+  };
+
+  window.PREFS = {
+    alto_contraste: false,
+    fuente_dyslexic: false,
+    modo_enfoque: false,
+    tamano_fuente: 'normal',
+    espaciado_letras: 'normal',
+    indicadores_foco: true
+  };
+
+  // ⭐ DETENER CUALQUIER TIMER ACTIVO
+  if (window.timerInterval) clearInterval(window.timerInterval);
+
+  // ⭐ MOSTRAR PANTALLA DE LOGIN
+  const authOverlay = document.getElementById('auth-overlay');
+  if (authOverlay) {
+    authOverlay.style.display = 'flex';
+    authOverlay.style.opacity = '1';
+    authOverlay.style.zIndex = '9999';
+  }
+
+  // Resetear a pantalla de login
+  setTimeout(() => {
+    try {
+      showAuth('login');
+
+      // ⭐ LIMPIAR FORMULARIOS
+      const loginForm = document.getElementById('login-form');
+      if (loginForm) loginForm.reset();
+
+      const regForm = document.getElementById('reg-form');
+      if (regForm) regForm.reset();
+
+      // ⭐ LIMPIAR ERRORES
+      const loginErr = document.getElementById('login-err');
+      if (loginErr) loginErr.style.display = 'none';
+
+      const regErr = document.getElementById('reg-err');
+      if (regErr) regErr.style.display = 'none';
+
+      toast('✅ Sesión cerrada correctamente', 's');
+      console.log('[doLogout] ✅ Sesión cerrada - usuario debe loguearse nuevamente');
+    } catch (ex) {
+      console.error('[doLogout] Error:', ex);
+    }
+  }, 100);
+
+  return false;
 }
 
 async function doLogin(e) {
@@ -1581,40 +1645,71 @@ renderNotif();
 (async function init(){
   initKanbanDrop();
 
-  // Restaurar sesión guardada
-  const saved=localStorage.getItem('tf_user');
-  if(saved){
-    const savedUser = JSON.parse(saved);
-    ST.user = savedUser;   // Restaurar inmediatamente sin esperar BD
-    updateUserUI(ST.user);
-    document.getElementById('auth-overlay').style.display='none';
+  // ⭐ MOSTRAR PANTALLA DE LOGIN POR DEFECTO
+  const authOverlay = document.getElementById('auth-overlay');
+  authOverlay.style.display = 'flex';
+  showAuth('login');
 
-    // ⭐ CARGAR PREFERENCIAS INMEDIATAMENTE
-    await loadPrefs();
+  // ⭐ INTENTAR RESTAURAR SESIÓN VÁLIDA DESDE LOCALSTORAGE
+  const saved = localStorage.getItem('tf_user');
+  const accessToken = localStorage.getItem('tf_access_token');
 
-    // Intentar actualizar perfil desde BD en segundo plano
+  if (saved && accessToken) {
     try {
-      const profiles = await API.get('/api/perfiles');
-      ST.profiles = profiles;
-      const match = profiles.find(p => p.id === savedUser.id);
-      if(match){
-        ST.user = {...match, email: savedUser.email};
-        localStorage.setItem('tf_user', JSON.stringify(ST.user));
+      const savedUser = JSON.parse(saved);
+
+      // ⭐ VALIDAR TOKEN EN LA API
+      const res = await fetch(BASE_URL + '/api/ping', {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + accessToken }
+      });
+
+      if (res.ok) {
+        // ✅ TOKEN VÁLIDO - Restaurar sesión
+        console.log('[init] ✅ Token válido, restaurando sesión...');
+        ST.user = savedUser;
         updateUserUI(ST.user);
+        authOverlay.style.display = 'none';
+
+        // Cargar preferencias
+        await loadPrefs();
+
+        // Intentar actualizar perfil desde BD
+        try {
+          const profiles = await API.get('/api/perfiles');
+          ST.profiles = profiles;
+          const match = profiles.find(p => p.id === savedUser.id);
+          if (match) {
+            ST.user = { ...match, email: savedUser.email };
+            localStorage.setItem('tf_user', JSON.stringify(ST.user));
+            updateUserUI(ST.user);
+          }
+          await loadAll();
+        } catch (ex) {
+          console.warn('[init] BD no disponible, usando datos cacheados', ex.message);
+        }
+      } else {
+        // ❌ TOKEN INVÁLIDO - Mostrar login
+        console.warn('[init] ❌ Token inválido, mostrando login');
+        doLogout();
       }
-      await loadAll();
-    } catch(ex){
-      // BD no disponible — sesión local válida, mostrar datos cacheados
-      try{ renderDash(); renderKanban(); renderLog(); } catch(_){}
+    } catch (ex) {
+      console.warn('[init] Error validando token:', ex.message);
+      doLogout();
     }
   }
 
-  renderDash();
-  renderKanban();
-  renderLog();
-  renderRep('week');
-  renderTmrLog();
-  updateTmr();
+  // ⭐ RENDERIZAR SIEMPRE (para ambos casos: login o dashboard)
+  try {
+    renderDash();
+    renderKanban();
+    renderLog();
+    renderRep('week');
+    renderTmrLog();
+    updateTmr();
+  } catch (ex) {
+    console.log('[init] No se pudo renderizar (usuario no logueado)');
+  }
 })();
 
 /* ══════════════════════════════════════════════

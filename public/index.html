@@ -200,7 +200,7 @@
       <a class="sb-item" data-page="profile" onclick="nav(this,'profile')"><span class="sb-ico">👤</span><span class="sb-lbl">Perfil</span><span class="sb-tip">Perfil</span></a>
       <a class="sb-item" data-page="access" onclick="nav(this,'access')"><span class="sb-ico">♿</span><span class="sb-lbl">Accesibilidad</span><span class="sb-tip">Accesibilidad</span></a>
       <div class="sb-grp">Sesión</div>
-      <a class="sb-item" onclick="doLogout()" style="color:var(--ros)"><span class="sb-ico">🚪</span><span class="sb-lbl">Cerrar sesión</span><span class="sb-tip">Cerrar sesión</span></a>
+      <button class="sb-item" onclick="doLogout(); return false;" style="color:var(--ros);cursor:pointer;text-align:left"><span class="sb-ico">🚪</span><span class="sb-lbl">Cerrar sesión</span><span class="sb-tip">Cerrar sesión</span></button>
       <a class="sb-item" onclick="showAuth('register')" style="color:var(--grn)"><span class="sb-ico">👤</span><span class="sb-lbl">Ver Registro</span><span class="sb-tip">Ver Registro</span></a>
       <a class="sb-item" onclick="showAuth('recover')" style="color:var(--amb)"><span class="sb-ico">🔑</span><span class="sb-lbl">Ver Recuperación</span><span class="sb-tip">Ver Recuperación</span></a>
     </nav>
@@ -523,7 +523,7 @@
               <div class="card-t">Sesión</div>
               <div class="fstack">
                 <p style="font-size:0.85rem;color:var(--t2);margin:0 0 12px">Cerrar tu sesión actual. Tendrás que volver a iniciar sesión para acceder.</p>
-                <button class="btn btn-d btn-sm" style="align-self:flex-start" onclick="doLogout()">Cerrar sesión</button>
+                <button class="btn btn-d btn-sm" style="align-self:flex-start" onclick="doLogout(); return false;">Cerrar sesión</button>
               </div>
             </div>
           </div>
