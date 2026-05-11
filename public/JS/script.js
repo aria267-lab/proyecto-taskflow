@@ -1748,6 +1748,10 @@ renderNotif();
 (async function init(){
   initKanbanDrop();
 
+  // ⭐ LIMPIAR BARRA DE BÚSQUEDA
+  const searchInput = document.getElementById('s-input');
+  if(searchInput) searchInput.value = '';
+
   // ⭐ MOSTRAR PANTALLA DE LOGIN POR DEFECTO
   const authOverlay = document.getElementById('auth-overlay');
   authOverlay.style.display = 'flex';
