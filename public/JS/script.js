@@ -517,6 +517,40 @@ function doRecover(e) {
   }, 3000);
 }
 
+/* ══════════════════════════════════════════════
+   ⭐ VALIDAR PERMISOS POR ROL
+══════════════════════════════════════════════ */
+function applyRoleBasedPermissions(user) {
+  const role = user?.role || 'Empleado';
+  const isAdmin = role === 'Admin';
+  const isGerente = role === 'Gerente';
+  const isEmpleado = role === 'Empleado';
+
+  // ⭐ OCULTAR BOTÓN "NUEVO PROYECTO" PARA EMPLEADOS
+  const newProjBtn = document.querySelector('[data-page="create-project"]');
+  if (newProjBtn) {
+    newProjBtn.style.display = (isAdmin || isGerente) ? 'flex' : 'none';
+  }
+
+  // Botón "Nuevo Proyecto" en página de proyectos
+  const newProjPageBtn = document.querySelector('button[onclick*="create-project"]');
+  if (newProjPageBtn) {
+    newProjPageBtn.style.display = (isAdmin || isGerente) ? 'block' : 'none';
+  }
+
+  // ⭐ OCULTAR BOTÓN ELIMINAR EN TAREAS PARA EMPLEADOS
+  const deleteTaskBtn = document.getElementById('mt-del');
+  if (deleteTaskBtn) {
+    deleteTaskBtn.style.display = (isAdmin || isGerente) ? 'block' : 'none';
+  }
+
+  // ⭐ OCULTAR OPCIONES DE ADMINISTRADOR
+  const gestión = document.querySelector('[data-page="reports"]');
+  if (gestión) {
+    gestión.style.display = (isAdmin || isGerente) ? 'flex' : 'none';
+  }
+}
+
 function updateUserUI(u){
   if(!u)return;
   const initials=u.initials||(u.full_name||u.name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -532,6 +566,9 @@ function updateUserUI(u){
   const ppn=document.getElementById('pf-pname');if(ppn)ppn.value=u.full_name||u.name||'';
   const ppe=document.getElementById('pf-pemail');if(ppe)ppe.value=u.email||'';
   const ppr=document.getElementById('pf-prole');if(ppr)ppr.value=u.role||'Empleado';
+
+  // ⭐ APLICAR RESTRICCIONES DE ROL
+  applyRoleBasedPermissions(u);
 }
 
 /* ══════════════════════════════════════════════
@@ -875,6 +912,28 @@ function editTask(id){
   document.getElementById('mt-desc').value=t.description||'';
   document.getElementById('mt-prio').value=t.priority||'Media';
   document.getElementById('mt-date').value=t.due_date||'';
+
+  // ⭐ VALIDAR PERMISOS PARA ELIMINAR
+  const deleteBtn = document.getElementById('mt-del');
+  const canDelete = ST.user?.role === 'Admin' || ST.user?.role === 'Gerente';
+
+  if (deleteBtn) {
+    if (canDelete) {
+      deleteBtn.style.display = 'block';
+      deleteBtn.onclick=async()=>{
+        if(confirm('¿Estás seguro de que deseas eliminar esta tarea?')){
+          try {
+            await API.delete('/api/tareas/'+id);
+            ST.tasks=ST.tasks.filter(x=>x.id!==id);
+            renderKanban(); closeM('m-task'); toast('Tarea eliminada','i');
+          } catch(ex){ toast('Error eliminando tarea','e'); }
+        }
+      };
+    } else {
+      deleteBtn.style.display = 'none';
+    }
+  }
+
   document.getElementById('mt-save').onclick=async()=>{
     const body={
       title:   document.getElementById('mt-name').value.trim()||t.title,
@@ -888,13 +947,7 @@ function editTask(id){
       renderKanban(); closeM('m-task'); toast('Tarea actualizada','s');
     } catch(ex){ toast('Error actualizando tarea','e'); }
   };
-  document.getElementById('mt-del').onclick=async()=>{
-    try {
-      await API.delete('/api/tareas/'+id);
-      ST.tasks=ST.tasks.filter(x=>x.id!==id);
-      renderKanban(); closeM('m-task'); toast('Tarea eliminada','i');
-    } catch(ex){ toast('Error eliminando tarea','e'); }
-  };
+
   openM('m-task');
 }
 
@@ -1144,6 +1197,13 @@ function renderProjDetail(){
 ══════════════════════════════════════════════ */
 async function doNewProj(e){
   e.preventDefault();
+
+  // ⭐ VALIDAR PERMISOS: Solo Admin y Gerente pueden crear proyectos
+  if (ST.user?.role !== 'Admin' && ST.user?.role !== 'Gerente') {
+    toast('❌ Solo Administradores y Gerentes pueden crear proyectos', 'e');
+    return;
+  }
+
   const name=document.getElementById('pf-name').value.trim();if(!name)return;
   const uid = getEffectiveUserId() || ST.user?.id || 'local';
   const body={
