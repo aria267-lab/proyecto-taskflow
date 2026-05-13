@@ -288,7 +288,8 @@
         </div>
         <div class="card anim">
           <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Mis tareas pendientes</div><button class="btn btn-p btn-sm" onclick="openNewTask('todo')">+ Nueva tarea</button></div>
-          <table class="tbl"><thead><tr><th>Tarea</th><th>Proyecto</th><th>Prioridad</th><th>Vence</th><th>Estado</th></tr></thead><tbody id="d-tbody"></tbody></table>
+          <div id="d-my-tasks-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          <div style="text-align:center;padding:8px"><button class="btn btn-g btn-sm" onclick="filterKanbanByUser(getEffectiveUserId()); nav(document.querySelector('[data-page=kanban]'),'kanban')">Ver todas →</button></div>
         </div>
       </div>
     </div>
@@ -371,7 +372,10 @@
     <div class="page" id="pg-kanban">
       <div class="pg">
         <div class="row ai-c jb mb16">
-          <div class="pg-hdr" style="margin:0"><h2>Tablero Kanban</h2><p>Arrastra las tarjetas para cambiar el estado.</p></div>
+          <div>
+            <div class="pg-hdr" style="margin:0"><h2>Tablero Kanban</h2><p id="kanban-subtitle" style="margin:0">Arrastra las tarjetas para cambiar el estado.</p></div>
+            <div id="kanban-filter-indicator" style="display:none;margin-top:8px;align-items:center;gap:8px"><span class="tag t-blue">Filtrado: Mis tareas</span><button class="btn btn-g btn-xs" style="padding:3px 8px;font-size:.7rem" onclick="clearKanbanFilter()">Mostrar todas ×</button></div>
+          </div>
           <button class="btn btn-p btn-sm" onclick="openNewTask('todo')">+ Nueva tarea</button>
         </div>
         <div class="kb">
@@ -591,19 +595,4 @@
         </div>
         <div class="card mb20 anim">
           <div class="card-t">Navegación y lectores de pantalla</div>
-          <div class="tog-row"><div><div class="tl-t">Indicadores de foco visibles</div><div class="tl-d">Borde azul visible al navegar con teclado (Tab)</div></div><div class="tog on" id="tog-foco" tabindex="0" role="switch" aria-checked="true" aria-label="Activar indicadores de foco visibles"></div></div>
-          <div class="tog-row"><div><div class="tl-t">Compatibilidad lectores de pantalla</div><div class="tl-d">ARIA activo — NVDA, JAWS, VoiceOver</div></div><span class="tag t-grn">Siempre activo</span></div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- Asistente Virtual - Cargado por assistant.js -->
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="JS/script.js"></script>
-<script src="JS/assistant.js"></script>
-</body>
-</html>
+          <div class="tog-row"><div><div class="tl-t">Indicadores de fo

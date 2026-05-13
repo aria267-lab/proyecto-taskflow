@@ -1028,11 +1028,21 @@ function renderTmrLog(){
    KANBAN
 ══════════════════════════════════════════════ */
 function renderKanban(){
+  // ⭐ Mostrar/ocultar indicador de filtro
+  const filterIndicator = document.getElementById('kanban-filter-indicator');
+  if(filterIndicator) {
+    filterIndicator.style.display = kanbanFilterByUser ? 'flex' : 'none';
+  }
+
   ['todo','progress','done'].forEach(col=>{
     const wrap=document.getElementById('cards-'+col);
     const cnt=document.getElementById('cnt-'+col);
     if(!wrap||!cnt)return;
-    const tasks=ST.tasks.filter(t=>t.column_status===col);
+    let tasks=ST.tasks.filter(t=>t.column_status===col);
+    // ⭐ Si hay filtro de usuario, mostrar solo las tareas asignadas a ese usuario
+    if(kanbanFilterByUser) {
+      tasks = tasks.filter(t=>t.assigned_to===kanbanFilterByUser);
+    }
     cnt.textContent=tasks.length;
     wrap.innerHTML='';
     tasks.forEach(t=>{
@@ -1339,34 +1349,69 @@ async function renderDash(){
         notifList.innerHTML = notifs || '<div style="text-align:center;color:var(--t2);padding:12px;font-size:.78rem">Sin notificaciones</div>';
       }
 
-      // ⭐ TODAS LAS TAREAS PENDIENTES
-      const tb=document.getElementById('d-tbody');
-      if(tb){
-        const pendingTasks = ST.tasks.filter(t => t.column_status !== 'done');
-        if(pendingTasks.length === 0) {
-          tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--t2);padding:20px">Sin tareas pendientes</td></tr>';
+      // ⭐ MIS TAREAS PENDIENTES (asignadas al usuario actual, max 5)
+      const myTasksList = document.getElementById('d-my-tasks-list');
+      if(myTasksList) {
+        const uid = getEffectiveUserId();
+        const myPendingTasks = ST.tasks.filter(t =>
+          t.assigned_to === uid &&
+          t.column_status !== 'done'
+        ).slice(0, 5);
+
+        if(myPendingTasks.length === 0) {
+          myTasksList.innerHTML = '<div style="text-align:center;color:var(--t2);padding:16px;font-size:.78rem">Sin tareas asignadas</div>';
         } else {
-          tb.innerHTML = pendingTasks.map(t=>`
-            <tr onclick="openTaskDetail('${t.id}')" style="cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
-              <td class="td-p">${t.title}</td>
-              <td style="font-size:.75rem">${t.project_name||''}</td>
-              <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
-              <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
-              <td><span class="tag ${t.column_status==='progress'?'t-blue':'t-gray'}">${COL_NAME[t.column_status]||t.column_status}</span></td>
-            </tr>`).join('');
+          myTasksList.innerHTML = myPendingTasks.map(t => {
+            const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
+            const color = colors[t.priority] || 'var(--s2)';
+            return `<div class="row ai-c g12" style="padding:10px;border-radius:var(--r);border:1px solid var(--bdr);cursor:pointer;transition:background .2s" onclick="openTaskDetail('${t.id}')" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
+              <div class="f1" style="min-width:0">
+                <div style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
+                <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${t.project_name || ''}</div>
+              </div>
+              <span class="tag ${PRIO_TAG[t.priority]||'t-amb'}" style="flex-shrink:0;font-size:.65rem">${t.priority||'Media'}</span>
+              <span style="font-size:.7rem;color:var(--t2);flex-shrink:0;font-family:var(--mono);min-width:70px;text-align:right">${t.due_date||'—'}</span>
+            </div>`;
+          }).join('');
         }
       }
     } catch(ex){ console.warn('dashboard error', ex); }
   } else {
-    // Sin sesión: mostrar datos locales cacheados
-    const tb=document.getElementById('d-tbody');if(!tb)return;
-    const pen=ST.tasks.filter(t=>t.column_status!=='done').slice(0,6);
-    tb.innerHTML=pen.map(t=>`<tr>
-      <td class="td-p">${t.title}</td><td style="font-size:.75rem">${t.project_name||''}</td>
-      <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
-      <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
-      <td><span class="tag t-gray">${COL_NAME[t.column_status]||''}</span></td></tr>`).join('');
+    // Sin sesión: mostrar datos locales cacheados en "Mis Tareas Pendientes"
+    const myTasksList = document.getElementById('d-my-tasks-list');
+    if(!myTasksList) return;
+    const pen = ST.tasks.filter(t => t.column_status !== 'done').slice(0, 5);
+    if(pen.length === 0) {
+      myTasksList.innerHTML = '<div style="text-align:center;color:var(--t2);padding:16px;font-size:.78rem">Sin tareas</div>';
+    } else {
+      myTasksList.innerHTML = pen.map(t => {
+        const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
+        return `<div class="row ai-c g12" style="padding:10px;border-radius:var(--r);border:1px solid var(--bdr);cursor:pointer;transition:background .2s" onclick="openTaskDetail('${t.id}')" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
+          <div class="f1" style="min-width:0">
+            <div style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
+            <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${t.project_name || ''}</div>
+          </div>
+          <span class="tag ${PRIO_TAG[t.priority]||'t-amb'}" style="flex-shrink:0;font-size:.65rem">${t.priority||'Media'}</span>
+          <span style="font-size:.7rem;color:var(--t2);flex-shrink:0;font-family:var(--mono);min-width:70px;text-align:right">${t.due_date||'—'}</span>
+        </div>`;
+      }).join('');
+    }
   }
+}
+
+/* ══════════════════════════════════════════════
+   KANBAN FILTERING
+══════════════════════════════════════════════ */
+let kanbanFilterByUser = null; // ID del usuario para filtrar tareas en Kanban
+
+function filterKanbanByUser(userId) {
+  kanbanFilterByUser = userId;
+  renderKanban();
+}
+
+function clearKanbanFilter() {
+  kanbanFilterByUser = null;
+  renderKanban();
 }
 
 /* ══════════════════════════════════════════════
@@ -2608,110 +2653,4 @@ document.addEventListener('keydown', function(e) {
       e.preventDefault();
       closeAllModals();
       // Cerrar chat si está abierto
-      const chatPanel = document.getElementById('chat-panel');
-      if (chatPanel?.classList.contains('open')) {
-        toggleChat();
-      }
-      // Cerrar asistente virtual si está abierto
-      const vaChat = document.getElementById('va-chat');
-      if (vaChat?.classList.contains('va-open') && asistente) {
-        asistente.cerrar();
-      }
-      break;
-      
-    case 'g':
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        // Ctrl+G: Ir a Kanban
-        nav(document.querySelector('[data-page=kanban]'), 'kanban');
-      }
-      break;
-      
-    case 'd':
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        // Ctrl+D: Ir a Dashboard
-        nav(document.querySelector('[data-page=dashboard]'), 'dashboard');
-      }
-      break;
-      
-    case 'n':
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        // Ctrl+N: Nueva tarea
-        openNewTask('todo');
-      }
-      break;
-      
-    case 'h':
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        // Ctrl+H: Abrir asistente virtual
-        if (asistente) {
-          asistente.abrir();
-        }
-      }
-      break;
-      
-    case '?':
-      // Mostrar ayuda de atajos
-      showKeyboardShortcutsHelp();
-      break;
-  }
-});
-
-// Cerrar todos los modales abiertos
-function closeAllModals() {
-  document.querySelectorAll('.modal-over.open').forEach(m => m.classList.remove('open'));
-  // También cerrar notificaciones si están abiertas
-  const notifDropdown = document.getElementById('notif-dropdown');
-  if (notifDropdown) notifDropdown.style.display = 'none';
-}
-
-// Mostrar ayuda de atajos de teclado
-function showKeyboardShortcutsHelp() {
-  const shortcuts = [
-    { key: 'Tab', desc: 'Navegar entre elementos' },
-    { key: 'Shift + Tab', desc: 'Navegar hacia atrás' },
-    { key: 'Enter / Space', desc: 'Activar botón/enlace' },
-    { key: 'Escape', desc: 'Cerrar ventanas/modales' },
-    { key: '← →', desc: 'Mover tarea en Kanban' },
-    { key: 'Ctrl + G', desc: 'Ir a Kanban' },
-    { key: 'Ctrl + D', desc: 'Ir a Dashboard' },
-    { key: 'Ctrl + N', desc: 'Nueva tarea' },
-    { key: 'Ctrl + H', desc: 'Abrir asistente virtual' },
-    { key: 'Delete', desc: 'Eliminar tarea seleccionada' },
-    { key: '?', desc: 'Mostrar esta ayuda' }
-  ];
-  
-  const helpHtml = `
-    <div class="modal-over open" id="m-shortcuts" onclick="if(event.target===this)closeM('m-shortcuts')">
-      <div class="modal" style="max-width:500px">
-        <div class="modal-hdr">
-          <h3>⌨️ Atajos de Teclado</h3>
-          <button class="modal-x" onclick="closeM('m-shortcuts')">✕</button>
-        </div>
-        <table class="tbl">
-          <thead><tr><th>Tecla</th><th>Acción</th></tr></thead>
-          <tbody>
-            ${shortcuts.map(s => `
-              <tr>
-                <td style="font-family:var(--mono);font-size:.75rem;font-weight:700;padding:8px 12px">
-                  <kbd style="background:var(--s2);padding:2px 6px;border-radius:4px;border:1px solid var(--bdr)">${s.key}</kbd>
-                </td>
-                <td style="font-size:.8rem;padding:8px 12px">${s.desc}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <p style="font-size:.7rem;color:var(--t2);margin-top:12px;text-align:center">
-          Presiona <kbd style="background:var(--s2);padding:1px 5px;border-radius:3px">?</kbd> en cualquier momento para ver esta ayuda
-        </p>
-      </div>
-    </div>
-  `;
-  
-  // Eliminar ayuda anterior si existe
-  document.getElementById('m-shortcuts')?.remove();
-  document.body.insertAdjacentHTML('beforeend', helpHtml);
-}
+      const chatPan
