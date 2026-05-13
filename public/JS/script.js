@@ -2715,3 +2715,13 @@ function showKeyboardShortcutsHelp() {
   document.getElementById('m-shortcuts')?.remove();
   document.body.insertAdjacentHTML('beforeend', helpHtml);
 }
+
+// Toggle sidebar: expande/colapsa la barra lateral y guarda estado
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sb-chevron');
+  sidebar.classList.toggle('sidebar-collapsed');
+  const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+  localStorage.setItem('sidebarOpen', !isCollapsed);
+  btn.textContent = isCollapsed ? '❯' : '❮';
+}

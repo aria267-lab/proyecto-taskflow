@@ -595,3 +595,12 @@ body.sin-foco-visible :focus-visible {
   transition: all var(--ease);
 }
 #mob-menu-btn:hover { background: var(--s2); border-color: var(--bdr2); }
+
+/* Animación sidebar colapsado */
+#sidebar {
+  transition: width 0.25s ease;
+}
+
+#sidebar.sidebar-collapsed {
+  width: 60px;
+}
