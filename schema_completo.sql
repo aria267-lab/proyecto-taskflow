@@ -186,22 +186,13 @@ CREATE INDEX IF NOT EXISTS idx_profiles_email        ON profiles(email);
 CREATE OR REPLACE VIEW v_kanban_tasks AS
 SELECT
   t.id, t.project_id, t.title, t.description,
-<<<<<<< HEAD
   t.column_status, t.priority, t.progress,
-=======
-  t.column_status AS col, t.priority, t.progress,
->>>>>>> 60101becd975bbecfd68920d156d8c7b9898c7e5
   t.due_date, t.due_date_iso, t.assigned_to, t.created_by,
   t.updated_at, t.created_at,
   p.name        AS project_name,
   p.color       AS project_color,
-<<<<<<< HEAD
   pf.full_name  AS assigned_name,
   pf.initials   AS assigned_initials
-=======
-  pf.full_name  AS assignee_name,
-  pf.initials   AS assignee_initials
->>>>>>> 60101becd975bbecfd68920d156d8c7b9898c7e5
 FROM tasks t
 JOIN projects   p  ON p.id = t.project_id
 LEFT JOIN profiles pf ON pf.id = t.assigned_to;
@@ -210,7 +201,8 @@ LEFT JOIN profiles pf ON pf.id = t.assigned_to;
 CREATE OR REPLACE VIEW v_time_summary AS
 SELECT
   tl.id, tl.profile_id, tl.task_id, tl.project_id,
-  tl.started_at, tl.ended_at, tl.duration_seconds, tl.is_active,
+  tl.started_at, tl.ended_at, tl.is_active,
+  EXTRACT(EPOCH FROM (CASE WHEN tl.is_active THEN (NOW() - tl.started_at) ELSE (tl.ended_at - tl.started_at) END))::INTEGER AS duration_sec,
   DATE(tl.started_at AT TIME ZONE 'America/Caracas') AS log_date,
   t.title  AS task_title,
   pj.name  AS project_name,
@@ -227,7 +219,7 @@ SELECT
   pf.id, pf.full_name, pf.initials, pf.role,
   COUNT(DISTINCT t.id)                                          AS total_tasks,
   COUNT(DISTINCT t.id) FILTER (WHERE t.column_status = 'done') AS done_tasks,
-  COALESCE(SUM(tl.duration_seconds) FILTER (WHERE tl.duration_seconds IS NOT NULL), 0) AS total_seconds
+  COALESCE(SUM(EXTRACT(EPOCH FROM (CASE WHEN tl.is_active THEN (NOW() - tl.started_at) ELSE (tl.ended_at - tl.started_at) END))::INTEGER) FILTER (WHERE tl.id IS NOT NULL), 0) AS total_seconds
 FROM profiles pf
 LEFT JOIN tasks     t  ON t.assigned_to = pf.id
 LEFT JOIN time_logs tl ON tl.profile_id = pf.id

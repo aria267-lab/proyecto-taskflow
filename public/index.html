@@ -7,6 +7,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="CSS/style.css">
 <link rel="stylesheet" href="CSS/assistant.css">
+<style>
+  /* ⭐ FIX: Ocultar autofill del navegador en barra de búsqueda */
+  #s-input {
+    background-color: transparent !important;
+    color: inherit !important;
+    caret-color: var(--t1);
+  }
+
+  /* Ocultar autofill de Chrome/Chromium */
+  #s-input:-webkit-autofill,
+  #s-input:-webkit-autofill:hover,
+  #s-input:-webkit-autofill:focus,
+  #s-input:-webkit-autofill:active,
+  #s-input:-webkit-autofill:focus textarea {
+    -webkit-box-shadow: 0 0 0 30px transparent inset !important;
+    -webkit-text-fill-color: transparent !important;
+    background-color: transparent !important;
+  }
+
+  #s-input::placeholder {
+    color: var(--t2);
+    opacity: 1;
+  }
+</style>
 </head>
 <body>
 <div id="toast-wrap"></div>
@@ -74,13 +98,36 @@
         <div id="reg-err" class="err-box"></div>
         <form id="reg-form" class="fstack" onsubmit="doRegister(event)">
           <div class="fg"><label class="fl">Nombre completo *</label><input id="reg-name" class="fi" type="text" placeholder="María González" required></div>
-          <div class="fg"><label class="fl">Correo electrónico *</label><input id="reg-email" class="fi" type="email" placeholder="tu@correo.com" required></div>
           <div class="frow">
-            <div class="fg"><label class="fl">Contraseña *</label><input id="reg-pass" class="fi" type="password" placeholder="Mín. 8 caracteres" required minlength="8"></div>
-            <div class="fg"><label class="fl">Confirmar *</label><input id="reg-pass2" class="fi" type="password" placeholder="Repite" required></div>
+            <div class="fg"><label class="fl">Correo electrónico *</label><input id="reg-email" class="fi" type="email" placeholder="tu@correo.com" required></div>
+            <div class="fg"><label class="fl">Cédula</label><input id="reg-cedula" class="fi" type="text" placeholder="1234567" maxlength="10"></div>
           </div>
-          <div class="fg"><label class="fl">Rol</label><select id="reg-role" class="fi fsel"><option value="Empleado">Empleado</option><option value="Gerente">Gerente</option><option value="Admin">Administrador</option></select></div>
-          <div class="fg"><label class="fl">Organización</label><input id="reg-org" class="fi" type="text" placeholder="CreativeHub" value="CreativeHub"></div>
+          <div class="frow">
+            <div class="fg"><label class="fl">Contraseña *</label>
+              <div style="position:relative">
+                <input id="reg-pass" class="fi" type="password" placeholder="Min. 8, mayús, núm, especial" required minlength="8" style="width:100%;padding-right:40px">
+                <button type="button" onclick="togglePass('reg-pass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t2);font-size:.85rem;line-height:1">👁</button>
+              </div>
+            </div>
+            <div class="fg"><label class="fl">Confirmar *</label>
+              <div style="position:relative">
+                <input id="reg-pass2" class="fi" type="password" placeholder="Repite" required style="width:100%;padding-right:40px">
+                <button type="button" onclick="togglePass('reg-pass2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t2);font-size:.85rem;line-height:1">👁</button>
+              </div>
+            </div>
+          </div>
+          <div id="pwd-requirements" style="display:none;background:var(--s1);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;font-size:.7rem;color:var(--t1);line-height:1.6">
+            <strong>Requisitos de contraseña:</strong><br>
+            ✓ Mínimo 8 caracteres<br>
+            ✓ Al menos una mayúscula (A-Z)<br>
+            ✓ Al menos una minúscula (a-z)<br>
+            ✓ Al menos un número (0-9)<br>
+            ✓ Al menos un especial (!@#$%^&*)<br>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="fl">Rol</label><select id="reg-role" class="fi fsel"><option value="Empleado">Empleado</option><option value="Gerente">Gerente</option><option value="Admin">Administrador</option></select></div>
+            <div class="fg"><label class="fl">Organización</label><input id="reg-org" class="fi" type="text" placeholder="CreativeHub" value="CreativeHub"></div>
+          </div>
           <button type="submit" class="btn btn-p" style="width:100%;justify-content:center;padding:10px;font-size:.85rem">Crear cuenta</button>
         </form>
         <div class="auth-switch" style="margin-top:16px">¿Ya tienes cuenta? <a onclick="showAuth('login')">Inicia sesión</a></div>
@@ -159,9 +206,8 @@
   <!-- SIDEBAR -->
   <aside id="sidebar">
     <div class="sb-logo">
-      <div class="sb-mark">TF</div>
+      <button class="sb-mark" id="sb-tog" title="Abrir/Cerrar menú" style="border:none;cursor:pointer;background:var(--blue);color:#fff;font-weight:800;border-radius:10px;">TF</button>
       <span class="sb-word">Task<em>Flow</em></span>
-      <button class="sb-tog" id="sb-tog" title="Abrir/Cerrar menú">‹</button>
     </div>
     <nav class="sb-nav">
       <a class="sb-item active" data-page="dashboard" onclick="nav(this,'dashboard')"><span class="sb-ico">⊞</span><span class="sb-lbl">Dashboard</span><span class="sb-tip">Dashboard</span></a>
@@ -178,7 +224,7 @@
       <a class="sb-item" data-page="profile" onclick="nav(this,'profile')"><span class="sb-ico">👤</span><span class="sb-lbl">Perfil</span><span class="sb-tip">Perfil</span></a>
       <a class="sb-item" data-page="access" onclick="nav(this,'access')"><span class="sb-ico">♿</span><span class="sb-lbl">Accesibilidad</span><span class="sb-tip">Accesibilidad</span></a>
       <div class="sb-grp">Sesión</div>
-      <a class="sb-item" onclick="showAuth('login')" style="color:var(--ros)"><span class="sb-ico">🚪</span><span class="sb-lbl">Cerrar sesión</span><span class="sb-tip">Cerrar sesión</span></a>
+      <button class="sb-item" onclick="doLogout(); return false;" style="color:var(--ros);cursor:pointer;text-align:left"><span class="sb-ico">🚪</span><span class="sb-lbl">Cerrar sesión</span><span class="sb-tip">Cerrar sesión</span></button>
       <a class="sb-item" onclick="showAuth('register')" style="color:var(--grn)"><span class="sb-ico">👤</span><span class="sb-lbl">Ver Registro</span><span class="sb-tip">Ver Registro</span></a>
       <a class="sb-item" onclick="showAuth('recover')" style="color:var(--amb)"><span class="sb-ico">🔑</span><span class="sb-lbl">Ver Recuperación</span><span class="sb-tip">Ver Recuperación</span></a>
     </nav>
@@ -196,13 +242,13 @@
       <div class="tb-title" id="tb-title">Dashboard</div>
       <div class="search-wrap" style="position:relative">
         <span class="search-ico">🔍</span>
-        <input id="s-input" class="search" type="text" placeholder="Buscar proyectos, tareas…" style="width:200px">
+        <input id="s-input" class="search" type="search" placeholder="Busca tu proyecto" autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" style="width:200px; background-color: transparent !important;" value="">
         <div id="search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--s0);border:1px solid var(--bdr);border-radius:var(--r);max-height:300px;overflow-y:auto;z-index:999;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,.1)">
           <div id="search-results" style="max-height:300px;overflow-y:auto"></div>
         </div>
       </div>
       <div class="row g8">
-        <button id="mob-menu-btn" aria-label="Abrir menú">☰</button>
+        <button id="mob-menu-btn" aria-label="Abrir menú" onclick="toggleSidebar()">☰</button>
         <div style="position:relative">
           <div class="tb-btn" id="tb-notif" style="cursor:pointer">🔔<span class="tb-badge" id="notif-badge" style="display:none">0</span></div>
           <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:100%;margin-top:8px;background:var(--s0);border:1px solid var(--bdr);border-radius:var(--r);width:320px;max-height:400px;overflow-y:auto;z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.1)">
@@ -223,25 +269,20 @@
       <div class="pg">
         <div class="pg-hdr anim"><h2 id="dash-greeting">¡Buenos días, Valeria 👋</h2><p>Aquí tienes el resumen de tu actividad de hoy.</p></div>
         <div class="g4 mb20">
-          <div class="stat anim a1"><div class="stat-ico" style="background:var(--blue-l)">📁</div><div class="stat-lbl">Proyectos activos</div><div class="stat-val" style="color:var(--blue)" id="d-projs">4</div><div class="stat-sub"><span class="trend up">↑ 2</span> este mes</div></div>
-          <div class="stat anim a2"><div class="stat-ico" style="background:var(--amb-l)">📋</div><div class="stat-lbl">Tareas pendientes</div><div class="stat-val" style="color:var(--amb)" id="d-tasks">0</div><div class="stat-sub"><span class="trend dn">3</span> alta prioridad</div></div>
-          <div class="stat anim a3"><div class="stat-ico" style="background:var(--teal-l)">⏱</div><div class="stat-lbl">Horas hoy</div><div class="stat-val" style="color:var(--teal)" id="d-hours">0h 00m</div><div class="stat-sub">Meta: 8h diarias</div></div>
-          <div class="stat anim a4"><div class="stat-ico" style="background:var(--vio-l)">📈</div><div class="stat-lbl">Horas esta semana</div><div class="stat-val" style="color:var(--vio)">22h 15m</div><div class="stat-sub"><span class="trend up">↑ 14%</span> vs semana anterior</div></div>
+          <div class="stat anim a1"><div class="stat-ico" style="background:var(--blue-l)">📁</div><div class="stat-lbl">Proyectos activos</div><div class="stat-val" style="color:var(--blue)" id="d-projs">0</div><div class="stat-sub"><span class="trend up" id="d-projs-month">↑ 0</span> este mes</div></div>
+          <div class="stat anim a2"><div class="stat-ico" style="background:var(--amb-l)">📋</div><div class="stat-lbl">Tareas pendientes</div><div class="stat-val" style="color:var(--amb)" id="d-tasks">0</div><div class="stat-sub"><span class="trend" id="d-high-priority" style="color:var(--ros)">0</span> alta prioridad</div></div>
+          <div class="stat anim a3"><div class="stat-ico" style="background:var(--teal-l)">⏱</div><div class="stat-lbl">Horas hoy</div><div class="stat-val" style="color:var(--teal)" id="d-today-hours">0h 0m</div><div class="stat-sub">Meta: 8h diarias</div></div>
+          <div class="stat anim a4"><div class="stat-ico" style="background:var(--vio-l)">📈</div><div class="stat-lbl">Horas esta semana</div><div class="stat-val" style="color:var(--vio)" id="d-week-hours">0h 0m</div><div class="stat-sub" id="d-productivity-sub"><span class="trend up">↑ 0%</span> vs semana anterior</div></div>
         </div>
         <div class="g2 mb20">
           <div class="card anim">
             <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Productividad semanal</div><span class="tag t-blue">Esta semana</span></div>
-            <div class="bch" style="height:88px;align-items:flex-end">
-              <div class="bch-item"><span class="bch-val" style="color:var(--t2)">2h</span><div class="bch-bar" style="height:22%;background:var(--s2)"></div><span class="bch-lbl">Lun</span></div>
-              <div class="bch-item"><span class="bch-val">6h</span><div class="bch-bar" style="height:68%;background:var(--blue)"></div><span class="bch-lbl">Mar</span></div>
-              <div class="bch-item"><span class="bch-val">5h</span><div class="bch-bar" style="height:54%;background:var(--blue)"></div><span class="bch-lbl">Mié</span></div>
-              <div class="bch-item"><span class="bch-val">8h</span><div class="bch-bar" style="height:96%;background:var(--blue)"></div><span class="bch-lbl">Jue</span></div>
-              <div class="bch-item"><span class="bch-val">6h</span><div class="bch-bar" style="height:70%;background:var(--blue)"></div><span class="bch-lbl">Vie</span></div>
-              <div class="bch-item"><span class="bch-val">3h</span><div class="bch-bar" style="height:34%;background:#BFDBFE"></div><span class="bch-lbl">Sáb</span></div>
-              <div class="bch-item"><span class="bch-val" style="color:var(--t2)">—</span><div class="bch-bar" style="height:3%;background:var(--s2)"></div><span class="bch-lbl">Dom</span></div>
+            <div class="bch" id="d-weekly-chart" style="height:88px;align-items:flex-end">
+              <div style="text-align:center;color:var(--t2);width:100%">Cargando datos...</div>
             </div>
           </div>
           <div class="card anim">
+<<<<<<< HEAD
             <div class="row ai-c jb mb16">
               <div class="card-t" style="margin:0">Notificaciones</div>
                 <!--<button class="btn btn-g btn-sm">Ver todas</button>-->
@@ -250,6 +291,10 @@
             <div class="notif-i"><div class="notif-dot" style="background:var(--ros)"></div><div><div class="notif-b">Tarea <strong>Diseño de API REST</strong> vence mañana</div><div class="notif-t">hace 15 min</div></div></div>
             <div class="notif-i"><div class="notif-dot" style="background:var(--blue)"></div><div><div class="notif-b">Carlos te asignó <strong>Testing módulo auth</strong></div><div class="notif-t">hace 1 hora</div></div></div>
             <div class="notif-i"><div class="notif-dot" style="background:var(--amb)"></div><div><div class="notif-b"><strong>TaskFlow MVP</strong> alcanzó 68% de avance</div><div class="notif-t">hace 3 horas</div></div></div>
+=======
+            <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Notificaciones</div><button class="btn btn-g btn-sm">Ver todas</button></div>
+            <div id="d-notif-list"></div>
+>>>>>>> 9970ebfd078a903cf88e27d04720961e1354891d
           </div>
         </div>
         <div class="card anim">
@@ -430,13 +475,13 @@
           </div>
           <div class="col g16">
             <div class="card anim">
-              <div class="card-t">Resumen de hoy</div>
-              <div class="g2" style="gap:10px">
-                <div style="background:var(--blue-l);border-radius:var(--r);padding:14px;text-align:center;border:1px solid rgba(36,98,233,.15)"><div id="d-today" style="font-size:1.4rem;font-weight:800;color:var(--blue);font-family:var(--mono)">00:00:00</div><div style="font-size:.67rem;color:var(--t2);margin-top:3px">Total hoy</div></div>
-                <div style="background:var(--s1);border-radius:var(--r);padding:14px;text-align:center;border:1px solid var(--bdr)"><div id="d-ses" style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:var(--mono)">0</div><div style="font-size:.67rem;color:var(--t2);margin-top:3px">Sesiones</div></div>
+              <div class="card-t">Sesiones hoy</div>
+              <div style="padding:14px;text-align:center;border:1px solid var(--bdr);border-radius:var(--r);background:var(--s1)">
+                <div id="tmr-sessions-today" style="font-size:1.4rem;font-weight:800;color:var(--teal);font-family:var(--mono)">0</div>
+                <div style="font-size:.67rem;color:var(--t2);margin-top:3px">Sesiones registradas</div>
               </div>
             </div>
-            <div class="card anim"><div class="card-t">Últimos registros</div><div id="tmr-log"></div></div>
+            <div class="card anim"><div class="card-t">Actividad reciente (hoy)</div><div id="tmr-log"></div></div>
           </div>
         </div>
       </div>
@@ -447,12 +492,12 @@
       <div class="pg">
         <div class="pg-hdr mb16"><h2>Historial de tiempo</h2><p>Registro completo de horas por tarea y proyecto.</p></div>
         <div class="row g8 mb16 wrap ai-c">
-          <input class="fi" type="date" value="2026-03-01" style="width:148px">
+          <input id="log-date-start" class="fi" type="date" value="2026-03-01" style="width:148px">
           <span style="font-size:.78rem;color:var(--t2)">—</span>
-          <input class="fi" type="date" value="2026-03-22" style="width:148px">
-          <select class="fi fsel" style="width:188px"><option>Todos los proyectos</option><option>TaskFlow MVP</option><option>CreativeHub Intranet</option></select>
-          <button class="btn btn-p btn-sm" onclick="renderLog()">Filtrar</button>
-          <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="toast('PDF generado','s')">↓ Exportar PDF</button>
+          <input id="log-date-end" class="fi" type="date" value="2026-03-22" style="width:148px">
+          <select id="log-project-filter" class="fi fsel" style="width:188px"><option value="">Todos los proyectos</option></select>
+          <button class="btn btn-p btn-sm" onclick="filterAndRenderLog()">Filtrar</button>
+          <button class="btn btn-g btn-sm" style="margin-left:auto" onclick="exportLogToPDF()">↓ Exportar PDF</button>
         </div>
         <div class="card">
           <table class="tbl"><thead><tr><th>Fecha</th><th>Tarea</th><th>Proyecto</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Acción</th></tr></thead><tbody id="log-tbody"></tbody></table>
@@ -531,16 +576,15 @@
               <div class="card-t">Sesión</div>
               <div class="fstack">
                 <p style="font-size:0.85rem;color:var(--t2);margin:0 0 12px">Cerrar tu sesión actual. Tendrás que volver a iniciar sesión para acceder.</p>
-                <button class="btn btn-d btn-sm" style="align-self:flex-start" onclick="doLogout()">Cerrar sesión</button>
+                <button class="btn btn-d btn-sm" style="align-self:flex-start" onclick="doLogout(); return false;">Cerrar sesión</button>
               </div>
             </div>
           </div>
           <div class="card anim">
             <div class="card-t">Actividad reciente</div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)"><div style="width:26px;height:26px;background:var(--blue-l);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">⏱</div><div><div style="font-size:.77rem;font-weight:500">Registró <strong>1h 32m</strong> en "Diseño de API REST"</div><div style="font-size:.63rem;color:var(--t2);margin-top:1px">Hoy, 10:28 AM</div></div></div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)"><div style="width:26px;height:26px;background:var(--amb-l);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">💬</div><div><div style="font-size:.77rem;font-weight:500">Comentó en "Diseño de API REST"</div><div style="font-size:.63rem;color:var(--t2);margin-top:1px">Hoy, 09:52 AM</div></div></div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)"><div style="width:26px;height:26px;background:var(--grn-l);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">✓</div><div><div style="font-size:.77rem;font-weight:500">Completó "Setup base de datos"</div><div style="font-size:.63rem;color:var(--t2);margin-top:1px">Ayer, 10:15 AM</div></div></div>
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0"><div style="width:26px;height:26px;background:var(--s2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">📁</div><div><div style="font-size:.77rem;font-weight:500">Asignada a "Rediseño Portal Web"</div><div style="font-size:.63rem;color:var(--t2);margin-top:1px">21 Mar 2026</div></div></div>
+            <div id="activity-log" style="max-height:300px;overflow-y:auto">
+              <div style="text-align:center;color:var(--t2);padding:20px;font-size:0.85rem">Cargando actividad...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -591,11 +635,14 @@
           <div class="tog-row"><div><div class="tl-t">Indicadores de foco visibles</div><div class="tl-d">Borde azul visible al navegar con teclado (Tab)</div></div><div class="tog on" id="tog-foco" tabindex="0" role="switch" aria-checked="true" aria-label="Activar indicadores de foco visibles"></div></div>
           <div class="tog-row"><div><div class="tl-t">Compatibilidad lectores de pantalla</div><div class="tl-d">ARIA activo — NVDA, JAWS, VoiceOver</div></div><span class="tag t-grn">Siempre activo</span></div>
         </div>
+<<<<<<< HEAD
         <div class="row g8 anim">
           <!--<button class="btn btn-p" onclick="savePrefs(PREFS)">Guardar preferencias</button>-->
 
           <button class="btn btn-g" onclick="savePrefs({alto_contraste:false,fuente_dyslexic:false,modo_enfoque:false,tamano_fuente:'normal',espaciado_letras:'normal',indicadores_foco:true})">Restablecer</button>
         </div>
+=======
+>>>>>>> 9970ebfd078a903cf88e27d04720961e1354891d
       </div>
     </div>
 
@@ -604,6 +651,7 @@
 
 <!-- Asistente Virtual - Cargado por assistant.js -->
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="JS/script.js"></script>
 <script src="JS/assistant.js"></script>
 </body>

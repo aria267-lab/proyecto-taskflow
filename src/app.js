@@ -13,6 +13,7 @@ const { verifyToken, authorize } = require('./middlewares/auth');
 const authRouter = require('./routes/auth');
 const prefRouter = require('./routes/preferencias');
 const chatRouter = require('./routes/mensajes');
+const activityRouter = require('./routes/activity');
 
 const app = express();
 app.use(cors());
@@ -30,6 +31,9 @@ app.use('/api/preferencias', prefRouter);
 
 /* MENSAJES CHAT — protegidos con JWT */
 app.use('/api/mensajes', chatRouter);
+
+/* ACTIVITY LOG — protegido con JWT */
+app.use('/api/activity-log', activityRouter);
 
 /* PERFILES */
 app.get('/api/perfiles', async (req, res) => {
@@ -77,24 +81,48 @@ app.patch('/api/perfiles/:id/desactivar', verifyToken, authorize(['Admin']), asy
 });
 
 /* PROYECTOS */
-app.get('/api/proyectos', async (req, res) => {
+app.get('/api/proyectos', verifyToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT p.*,
         (SELECT json_agg(json_build_object('id',pf.id,'full_name',pf.full_name,'initials',pf.initials,'role',pm.role))
          FROM project_members pm JOIN profiles pf ON pf.id=pm.profile_id WHERE pm.project_id=p.id) AS members
-      FROM projects p ORDER BY p.created_at DESC`);
+      FROM projects p
+      WHERE 1=1`;
+
+    const params = [];
+
+    // Role-based filtering: Empleados only see projects they're members of
+    if (req.user.role === 'Empleado') {
+      query += ` AND p.id IN (SELECT project_id FROM project_members WHERE profile_id = $1)`;
+      params.push(req.user.id);
+    }
+    // Admin and Gerente see all projects
+
+    query += ` ORDER BY p.created_at DESC`;
+
+    const { rows } = await pool.query(query, params);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/proyectos/:id', async (req, res) => {
+app.get('/api/proyectos/:id', verifyToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT p.*,
         (SELECT json_agg(json_build_object('id',pf.id,'full_name',pf.full_name,'initials',pf.initials,'role',pm.role))
          FROM project_members pm JOIN profiles pf ON pf.id=pm.profile_id WHERE pm.project_id=p.id) AS members
-      FROM projects p WHERE p.id=$1`, [req.params.id]);
+      FROM projects p WHERE p.id=$1`;
+
+    const params = [req.params.id];
+
+    // Empleados can only view projects they're members of
+    if (req.user.role === 'Empleado') {
+      query += ` AND p.id IN (SELECT project_id FROM project_members WHERE profile_id = $2)`;
+      params.push(req.user.id);
+    }
+
+    const { rows } = await pool.query(query, params);
     if (!rows.length) return res.status(404).json({ error: 'Proyecto no encontrado' });
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -214,6 +242,39 @@ app.put('/api/tareas/:id', verifyToken, async (req, res) => {
       [title,description,column_status,priority,progress,due_date,due_date_iso,assigned_to,req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Tarea no encontrada.' });
+
+    const task = rows[0];
+    const projectId = task.project_id;
+
+    // ⭐ AUTO-COMPLETE: Si todas las tareas del proyecto están en 'done', cambiar proyecto a 'Completado'
+    if (column_status === 'done') {
+      try {
+        const { rows: tasksCount } = await pool.query(
+          `SELECT COUNT(*) as total,
+                  SUM(CASE WHEN column_status='done' THEN 1 ELSE 0 END) as done
+           FROM tasks WHERE project_id=$1`,
+          [projectId]
+        );
+
+        if (tasksCount.length > 0) {
+          const row = tasksCount[0];
+          const total = parseInt(row.total) || 0;
+          const done = parseInt(row.done) || 0;
+
+          // Si todas las tareas están completadas, cambiar proyecto a Completado
+          if (total > 0 && total === done) {
+            await pool.query(
+              `UPDATE projects SET status='Completado', updated_at=NOW() WHERE id=$1`,
+              [projectId]
+            );
+            console.log(`[AUTO-COMPLETE] ✅ Proyecto ${projectId} marcado como Completado (${done}/${total} tareas)`);
+          }
+        }
+      } catch (countErr) {
+        console.error('[AUTO-COMPLETE ERROR]', countErr.message);
+      }
+    }
+
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -231,6 +292,39 @@ app.patch('/api/tareas/:id/mover', verifyToken, async (req, res) => {
       [column_status, progreso, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Tarea no encontrada.' });
+
+    const task = rows[0];
+    const projectId = task.project_id;
+
+    // ⭐ AUTO-COMPLETE: Si todas las tareas del proyecto están en 'done', cambiar proyecto a 'Completado'
+    if (column_status === 'done') {
+      try {
+        const { rows: tasksCount } = await pool.query(
+          `SELECT COUNT(*) as total,
+                  SUM(CASE WHEN column_status='done' THEN 1 ELSE 0 END) as done
+           FROM tasks WHERE project_id=$1`,
+          [projectId]
+        );
+
+        if (tasksCount.length > 0) {
+          const row = tasksCount[0];
+          const total = parseInt(row.total) || 0;
+          const done = parseInt(row.done) || 0;
+
+          // Si todas las tareas están completadas, cambiar proyecto a Completado
+          if (total > 0 && total === done) {
+            await pool.query(
+              `UPDATE projects SET status='Completado', updated_at=NOW() WHERE id=$1`,
+              [projectId]
+            );
+            console.log(`[AUTO-COMPLETE] ✅ Proyecto ${projectId} marcado como Completado (${done}/${total} tareas)`);
+          }
+        }
+      } catch (countErr) {
+        console.error('[AUTO-COMPLETE ERROR]', countErr.message);
+      }
+    }
+
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -343,28 +437,86 @@ app.patch('/api/notificaciones/:id/leer', verifyToken, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/* DASHBOARD — Eduardo Sáb 3 may: métricas desde API en vez de variables locales */
+/* DASHBOARD — Eduardo Sáb 3 may: métricas desde API en vez de variables locales + productividad */
 app.get('/api/dashboard/:profile_id', async (req, res) => {
   const pid = req.params.profile_id;
   try {
-    const [ap, pt, hp, tm, rt, todayH] = await Promise.all([
+    const [ap, pm_count, pt, hp, tm, rt, todayH, thisWeekH, lastWeekH] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM projects p JOIN project_members pm ON pm.project_id=p.id WHERE pm.profile_id=$1 AND p.status='Activo'`, [pid]),
+      pool.query(`SELECT COUNT(*) FROM projects WHERE created_by=$1 AND DATE_TRUNC('month', created_at AT TIME ZONE 'UTC')=DATE_TRUNC('month', CURRENT_DATE AT TIME ZONE 'UTC')`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT COUNT(*) FROM tasks WHERE column_status!='done' AND priority='Alta' AND (assigned_to=$1 OR created_by=$1)`, [pid]),
       pool.query(`SELECT tl.*,t.title AS task_title,p.name AS project_name,EXTRACT(EPOCH FROM (NOW()-tl.started_at))::INTEGER AS elapsed_seconds FROM time_logs tl JOIN tasks t ON t.id=tl.task_id JOIN projects p ON p.id=tl.project_id WHERE tl.profile_id=$1 AND tl.is_active=true LIMIT 1`, [pid]),
       pool.query(`SELECT * FROM v_kanban_tasks WHERE assigned_to=$1 AND column_status!='done' ORDER BY due_date_iso ASC NULLS LAST LIMIT 6`, [pid]),
-      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE duration_seconds END),0)::INTEGER AS seconds_today FROM time_logs WHERE profile_id=$1 AND DATE(started_at AT TIME ZONE 'America/Caracas')=CURRENT_DATE`, [pid])
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE(started_at AT TIME ZONE 'UTC')=CURRENT_DATE`, [pid]),
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC')=DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')`, [pid]),
+      pool.query(`SELECT COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds FROM time_logs WHERE profile_id=$1 AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC')=DATE_TRUNC('week', (CURRENT_DATE-INTERVAL '7 days') AT TIME ZONE 'UTC')`, [pid])
     ]);
+
+    const seconds_today = parseInt(todayH.rows[0]?.seconds || 0);
+    const seconds_this_week = parseInt(thisWeekH.rows[0]?.seconds || 0);
+    const seconds_last_week = parseInt(lastWeekH.rows[0]?.seconds || 0);
+
+    // Calcular % de cambio en productividad
+    let productivity_change = 0;
+    if (seconds_last_week > 0) {
+      productivity_change = Math.round(((seconds_this_week - seconds_last_week) / seconds_last_week) * 100);
+    } else if (seconds_this_week > 0) {
+      productivity_change = 100; // Nueva actividad esta semana
+    }
+
     res.json({
       active_projects: parseInt(ap.rows[0]?.count || 0),
+      projects_new_this_month: parseInt(pm_count.rows[0]?.count || 0),
       pending_tasks: parseInt(pt.rows[0]?.count || 0),
       high_priority_tasks: parseInt(hp.rows[0]?.count || 0),
       active_timer: tm.rows[0] || null,
       recent_tasks: rt.rows || [],
-      seconds_today: todayH.rows[0]?.seconds_today || 0
+      seconds_today: seconds_today,
+      seconds_this_week: seconds_this_week,
+      seconds_last_week: seconds_last_week,
+      productivity_change: productivity_change
     });
   } catch (e) {
     console.error('[/api/dashboard] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/* DASHBOARD - Horas por día de la semana (productividad semanal) */
+app.get('/api/weekly-hours/:profile_id', async (req, res) => {
+  const pid = req.params.profile_id;
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        TO_CHAR(DATE(started_at AT TIME ZONE 'UTC'), 'Dy') AS day_short,
+        EXTRACT(DOW FROM started_at AT TIME ZONE 'UTC')::INTEGER AS day_order,
+        COALESCE(SUM(CASE WHEN is_active THEN EXTRACT(EPOCH FROM (NOW()-started_at)) ELSE EXTRACT(EPOCH FROM (ended_at-started_at)) END),0)::INTEGER AS seconds
+      FROM time_logs
+      WHERE profile_id=$1
+        AND DATE_TRUNC('week', started_at AT TIME ZONE 'UTC') = DATE_TRUNC('week', CURRENT_DATE AT TIME ZONE 'UTC')
+      GROUP BY DATE(started_at AT TIME ZONE 'UTC'), day_order
+      ORDER BY day_order ASC
+    `, [pid]);
+
+    // Mapear respuesta con nombres de días en español
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const weekData = [];
+    for (let i = 0; i < 7; i++) {
+      const dayData = rows.find(r => r.day_order === i);
+      const seconds = dayData?.seconds || 0;
+      const hours = Math.floor(seconds / 3600);
+      weekData.push({
+        day: dayNames[i],
+        day_order: i,
+        hours: hours,
+        seconds: seconds
+      });
+    }
+
+    res.json(weekData);
+  } catch (e) {
+    console.error('[/api/dashboard/weekly-hours] Error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
