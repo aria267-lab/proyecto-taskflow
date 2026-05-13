@@ -201,7 +201,8 @@ LEFT JOIN profiles pf ON pf.id = t.assigned_to;
 CREATE OR REPLACE VIEW v_time_summary AS
 SELECT
   tl.id, tl.profile_id, tl.task_id, tl.project_id,
-  tl.started_at, tl.ended_at, tl.duration_seconds, tl.is_active,
+  tl.started_at, tl.ended_at, tl.is_active,
+  EXTRACT(EPOCH FROM (CASE WHEN tl.is_active THEN (NOW() - tl.started_at) ELSE (tl.ended_at - tl.started_at) END))::INTEGER AS duration_sec,
   DATE(tl.started_at AT TIME ZONE 'America/Caracas') AS log_date,
   t.title  AS task_title,
   pj.name  AS project_name,
@@ -218,7 +219,7 @@ SELECT
   pf.id, pf.full_name, pf.initials, pf.role,
   COUNT(DISTINCT t.id)                                          AS total_tasks,
   COUNT(DISTINCT t.id) FILTER (WHERE t.column_status = 'done') AS done_tasks,
-  COALESCE(SUM(tl.duration_seconds) FILTER (WHERE tl.duration_seconds IS NOT NULL), 0) AS total_seconds
+  COALESCE(SUM(EXTRACT(EPOCH FROM (CASE WHEN tl.is_active THEN (NOW() - tl.started_at) ELSE (tl.ended_at - tl.started_at) END))::INTEGER) FILTER (WHERE tl.id IS NOT NULL), 0) AS total_seconds
 FROM profiles pf
 LEFT JOIN tasks     t  ON t.assigned_to = pf.id
 LEFT JOIN time_logs tl ON tl.profile_id = pf.id
