@@ -283,8 +283,19 @@
             </div>
           </div>
           <div class="card anim">
+<<<<<<< HEAD
+            <div class="row ai-c jb mb16">
+              <div class="card-t" style="margin:0">Notificaciones</div>
+                <!--<button class="btn btn-g btn-sm">Ver todas</button>-->
+                <button class="btn btn-g btn-sm" onclick="verTodasNotificaciones()">Ver todas</button>
+          </div>
+            <div class="notif-i"><div class="notif-dot" style="background:var(--ros)"></div><div><div class="notif-b">Tarea <strong>Diseño de API REST</strong> vence mañana</div><div class="notif-t">hace 15 min</div></div></div>
+            <div class="notif-i"><div class="notif-dot" style="background:var(--blue)"></div><div><div class="notif-b">Carlos te asignó <strong>Testing módulo auth</strong></div><div class="notif-t">hace 1 hora</div></div></div>
+            <div class="notif-i"><div class="notif-dot" style="background:var(--amb)"></div><div><div class="notif-b"><strong>TaskFlow MVP</strong> alcanzó 68% de avance</div><div class="notif-t">hace 3 horas</div></div></div>
+=======
             <div class="row ai-c jb mb16"><div class="card-t" style="margin:0">Notificaciones</div><button class="btn btn-g btn-sm">Ver todas</button></div>
             <div id="d-notif-list"></div>
+>>>>>>> 9970ebfd078a903cf88e27d04720961e1354891d
           </div>
         </div>
         <div class="card anim">
@@ -293,6 +304,24 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de todas las notificaciones -->
+    <div id="m-notificaciones" class="modal-over">
+      <div class="modal" style="max-width: 550px;">
+        <div class="modal-hdr">
+          <h3>📬 Todas las notificaciones</h3>
+          <button class="modal-x" onclick="closeM('m-notificaciones')">✕</button>
+        </div>
+        <div id="notif-full-list" style="max-height: 450px; overflow-y: auto; min-height: 200px;">
+          <div style="text-align: center; padding: 30px; color: gray;">Cargando...</div>
+        </div>
+        <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 10px; display: flex; justify-content: flex-end;">
+          <button class="btn btn-g btn-sm" onclick="marcarTodasNotificacionesLeidas()">Marcar todas como leídas</button>
+          <button class="btn btn-p btn-sm" onclick="closeM('m-notificaciones')" style="margin-left: 10px;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- ══ PAGE: PROJECTS ══ -->
     <div class="page" id="pg-projects">
@@ -566,6 +595,18 @@
     <div class="page" id="pg-access">
       <div class="pg" style="max-width:740px">
         <div class="pg-hdr mb16"><h2>Configuración de accesibilidad</h2><p>Preferencias personalizadas — WCAG 2.1 nivel AA.</p></div>
+        <span id="prefs-saved-badge" style="
+              display:none;
+              font-size:.72rem;
+              font-weight:700;
+              color:var(--grn);
+              background:var(--grn-l);
+              border:1px solid rgba(22,163,74,.2);
+              border-radius:20px;
+              padding:2px 10px;
+              margin-left:8px;
+              transition:opacity .3s;
+            ">✓ Guardado</span>
         <div class="ib ib-blue mb16 anim">♿ Las preferencias se guardan por usuario y se aplican en toda la plataforma.</div>
         <div class="card mb16 anim">
           <div class="card-t">Visual</div>
@@ -595,9 +636,12 @@
           <div class="tog-row"><div><div class="tl-t">Indicadores de foco visibles</div><div class="tl-d">Borde azul visible al navegar con teclado (Tab)</div></div><div class="tog on" id="tog-foco" tabindex="0" role="switch" aria-checked="true" aria-label="Activar indicadores de foco visibles"></div></div>
           <div class="tog-row"><div><div class="tl-t">Compatibilidad lectores de pantalla</div><div class="tl-d">ARIA activo — NVDA, JAWS, VoiceOver</div></div><span class="tag t-grn">Siempre activo</span></div>
         </div>
+        <div class="row g8 anim">
+          <!--<button class="btn btn-p" onclick="savePrefs(PREFS)">Guardar preferencias</button>-->
+          <button class="btn btn-g" onclick="savePrefs({alto_contraste:false,fuente_dyslexic:false,modo_enfoque:false,tamano_fuente:'normal',espaciado_letras:'normal',indicadores_foco:true})">Restablecer</button>
+        </div>
       </div>
     </div>
-
   </div><!-- /main -->
 </div><!-- /app -->
 
