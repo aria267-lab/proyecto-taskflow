@@ -448,10 +448,10 @@ class AsistenteVirtual {
 
     // Si no encuentra coincidencia
     if (this.filtroActual) {
-      return `😅 No encuentro esa pregunta en la categoría ${this.filtroActual}. Intenta otra pregunta o cambia de categoría.`;
+      return `❓ No encuentré una respuesta para eso. Intenta otra pregunta o revisa la sección de ayuda.`;
     }
 
-    return `😅 No encuentro información sobre eso en mi base de datos. Intenta preguntar sobre:\n\n📝 Tareas, Proyectos, Kanban\n⏱️ Cronómetro\n👥 Miembros, Roles\n📊 Dashboard, Reportes\n♿ Accesibilidad\n💬 Chat\n🔐 Autenticación\n\nO escribe "ayuda" para más opciones.`;
+    return `❓ No encuentré una respuesta para eso. Intenta otra pregunta o revisa la sección de ayuda.`;
   }
 
   agregarMensaje(tipo, texto) {
