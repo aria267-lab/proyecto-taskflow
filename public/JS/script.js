@@ -525,7 +525,7 @@ document.getElementById('sb-tog').addEventListener('click',()=>{
 const TITLES={dashboard:'Dashboard',projects:'Proyectos','create-project':'Nuevo Proyecto',
   'project-detail':'Detalle del Proyecto',kanban:'Tablero Kanban','task-detail':'Detalle de Tarea',
   timer:'Cronómetro',timelog:'Historial de Tiempo',reports:'Reportes & Usuarios',
-  profile:'Mi Perfil',access:'Accesibilidad'};
+  profile:'Mi Perfil',access:'Accesibilidad', mytasks: 'Mis Tareas'};
 
 function nav(el,pageId){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -543,6 +543,7 @@ function nav(el,pageId){
   if(pageId==='timer')      renderTmrLog();
   if(pageId==='profile')    renderProfile();
   if(pageId==='project-detail') renderProjDetail();
+  if(pageId=== 'mytasks')    renderMyTasks();
 }
 
 /* ══════════════════════════════════════════════
@@ -1928,4 +1929,29 @@ async function actualizarBadgeNotificaciones() {
 document.getElementById('m-shortcuts')?.remove();
 document.body.insertAdjacentHTML('beforeend', helpHtml);
 
+}
+
+// Carga y muestra las tareas asignadas al usuario actual
+async function renderMyTasks() {
+  const tbody = document.getElementById('mt-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+  try {
+    const res = await API.get('/api/tareas?assigned_to=' + ST.user.id);
+    const tareas = res.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+    if (!tareas.length) {
+      tbody.innerHTML = '<tr><td colspan="5">No tienes tareas asignadas.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tareas.map(t => `
+      <tr>
+        <td>${t.title}</td>
+        <td>${t.project_name || ''}</td>
+        <td><span class="badge ${t.priority === 'Alta' ? 'badge-red' : t.priority === 'Media' ? 'badge-orange' : 'badge-green'}">${t.priority}</span></td>
+        <td>${t.due_date ? t.due_date.slice(0,10) : ''}</td>
+        <td>${t.column_status || ''}</td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="5">Error cargando tareas.</td></tr>';
+  }
 }
