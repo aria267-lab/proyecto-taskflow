@@ -1013,9 +1013,9 @@ function renderTmrLog(){
   }
 
   el.innerHTML=items.map(l=>{
-    // ⭐ CAMPO CORRECTO: duration_seconds (no duration_sec)
-    const dur = l.duration_seconds ? fmt(l.duration_seconds) : (l.is_active?'activo…':'—');
-    console.log('[renderTmrLog] Renderizando item:', {task: l.task_title, duration: l.duration_seconds, dur});
+    // ⭐ CAMPO CORRECTO: duration_sec (no duration_seconds)
+    const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active?'activo…':'—');
+    console.log('[renderTmrLog] Renderizando item:', {task: l.task_title, duration: l.duration_sec, dur});
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)">
       <div><div style="font-size:.79rem;font-weight:600">${l.task_title||l.task||''}</div>
       <div style="font-size:.64rem;color:var(--t2)">${l.project_name||l.proj||''}</div></div>
@@ -2046,9 +2046,42 @@ document.addEventListener('click', (e) => {
 renderNotif();
 
 /* ══════════════════════════════════════════════
+   SIDEBAR TOGGLE
+══════════════════════════════════════════════ */
+function toggleSidebar() {
+  ST.mini = !ST.mini;
+  const sb = document.getElementById('sidebar');
+  if(ST.mini) {
+    sb?.classList.add('mini');
+    localStorage.setItem('sidebar-state', 'mini');
+    console.log('[toggleSidebar] 👈 Sidebar cerrada');
+  } else {
+    sb?.classList.remove('mini');
+    localStorage.setItem('sidebar-state', 'normal');
+    console.log('[toggleSidebar] 👉 Sidebar abierta');
+  }
+}
+
+function restoreSidebarState() {
+  const saved = localStorage.getItem('sidebar-state');
+  if(saved === 'mini') {
+    ST.mini = true;
+    document.getElementById('sidebar')?.classList.add('mini');
+    console.log('[restoreSidebarState] Sidebar restaurada: cerrada');
+  } else {
+    ST.mini = false;
+    document.getElementById('sidebar')?.classList.remove('mini');
+    console.log('[restoreSidebarState] Sidebar restaurada: abierta');
+  }
+}
+
+/* ══════════════════════════════════════════════
    INICIALIZACIÓN
 ══════════════════════════════════════════════ */
 (async function init(){
+  // ⭐ RESTAURAR ESTADO DE SIDEBAR
+  restoreSidebarState();
+
   initKanbanDrop();
 
   // ⭐ LIMPIAR BARRA DE BÚSQUEDA (ocultar autofill)
