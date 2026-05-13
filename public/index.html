@@ -212,7 +212,8 @@
     <nav class="sb-nav">
       <a class="sb-item active" data-page="dashboard" onclick="nav(this,'dashboard')"><span class="sb-ico">⊞</span><span class="sb-lbl">Dashboard</span><span class="sb-tip">Dashboard</span></a>
       <a class="sb-item" data-page="projects" onclick="nav(this,'projects')"><span class="sb-ico">📁</span><span class="sb-lbl">Proyectos</span><span class="sb-tip">Proyectos</span></a>
-      <a class="sb-item" data-page="kanban" onclick="nav(this,'kanban')"><span class="sb-ico">☰</span><span class="sb-lbl">Mis Tareas</span><span class="sb-tip">Mis Tareas</span><span class="sb-badge" id="sb-cnt">0</span></a>
+      <a class="sb-item" data-page="mytasks" onclick="nav(this,'mytasks')"><span class="sb-ico">☰</span><span class="sb-lbl">Mis Tareas</span><span class="sb-tip">Mis Tareas</span><span class="sb-badge" id="sb-cnt">0</span></a>
+      <a class="sb-item" data-page="kanban" onclick="nav(this,'kanban')"><span class="sb-ico">≡</span><span class="sb-lbl">Kanban</span><span class="sb-tip">Kanban</span></a>
       <a class="sb-item" data-page="timer" onclick="nav(this,'timer')"><span class="sb-ico">⏱</span><span class="sb-lbl">Cronómetro</span><span class="sb-tip">Cronómetro</span></a>
       <div class="sb-grp">Reportes</div>
       <a class="sb-item" data-page="reports" onclick="nav(this,'reports')"><span class="sb-ico">📊</span><span class="sb-lbl">Reportes</span><span class="sb-tip">Reportes</span></a>
@@ -403,6 +404,7 @@
           <div class="pg-hdr" style="margin:0"><h2>Tablero Kanban</h2><p>Arrastra las tarjetas para cambiar el estado.</p></div>
           <button class="btn btn-p btn-sm" onclick="openNewTask('todo')">+ Nueva tarea</button>
         </div>
+
         <div class="kb">
           <div id="col-todo" class="kbc"><div class="kbc-hdr"><div class="kbc-dot" style="background:var(--t2)"></div><span class="kbc-name">Por hacer</span><span class="kbc-cnt" id="cnt-todo">0</span></div><div id="cards-todo"></div><button class="kb-add" onclick="openNewTask('todo')">＋ Agregar tarea</button></div>
           <div id="col-progress" class="kbc" style="border-color:rgba(36,98,233,.3);background:var(--blue-l)"><div class="kbc-hdr"><div class="kbc-dot" style="background:var(--blue)"></div><span class="kbc-name">En progreso</span><span class="kbc-cnt" id="cnt-progress" style="background:rgba(36,98,233,.12);color:var(--blue);border-color:rgba(36,98,233,.25)">0</span></div><div id="cards-progress"></div><button class="kb-add" onclick="openNewTask('progress')">＋ Agregar tarea</button></div>
@@ -410,6 +412,17 @@
         </div>
       </div>
     </div>
+
+    <!-- == PAGE: MIS TAREAS == -->
+<div class="page" id="pg-mytasks">
+  <div class="pg">
+    <div class="pg-hdr" style="margin:0"><h2>Mis Tareas</h2><p>Tareas asignadas a ti, ordenadas por fecha límite.</p></div>
+    <table class="tbl">
+      <thead><tr><th>Tarea</th><th>Proyecto</th><th>Prioridad</th><th>Vence</th><th>Estado</th></tr></thead>
+      <tbody id="mt-tbody"></tbody>
+    </table>
+  </div>
+</div>
 
     <!-- ══ PAGE: TASK DETAIL ══ -->
     <div class="page" id="pg-task-detail">
