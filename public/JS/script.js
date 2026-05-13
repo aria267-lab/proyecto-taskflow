@@ -102,8 +102,12 @@ function toast(msg,type='i'){
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';t.style.transition='.3s';setTimeout(()=>t.remove(),300)},3200);
 }
 
-function openM(id){document.getElementById(id).classList.add('open')}
-function closeM(id){document.getElementById(id).classList.remove('open')}
+function openM(id){document.getElementById(id).classList.add('open')
+
+}
+function closeM(id){document.getElementById(id).classList.remove('open')
+
+}
 document.querySelectorAll('.modal-over').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-over.open').forEach(o=>o.classList.remove('open'))});
 
@@ -1689,9 +1693,10 @@ function showKeyboardShortcutsHelp() {
     { key: '← →', desc: 'Mover tarea en Kanban' },
     { key: 'Ctrl + G', desc: 'Ir a Kanban' },
     { key: 'Ctrl + D', desc: 'Ir a Dashboard' },
-    { key: 'Ctrl + N', desc: 'Nueva tarea' },
+    { key: 'Ctrl + k', desc: 'Nueva tarea' },
     { key: 'Ctrl + H', desc: 'Abrir asistente virtual' },
     { key: 'Delete', desc: 'Eliminar tarea seleccionada' },
+    { key: 'Escape', desc: 'Cerrar ventanas/modales' },
     { key: '?', desc: 'Mostrar esta ayuda' }
   ];
   
@@ -1721,8 +1726,136 @@ function showKeyboardShortcutsHelp() {
       </div>
     </div>
   `;
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNCIONES PARA VER TODAS LAS NOTIFICACIONES - TAREA VALERIA
+// ═══════════════════════════════════════════════════════════════════
+
+async function verTodasNotificaciones() {
+  if (!ST.user || !ST.user.id) {
+    toast('Inicia sesión para ver notificaciones', 'e');
+    return;
+  }
+
+  const container = document.getElementById('notif-full-list');
+  if (!container) {
+    console.error('No se encontró el contenedor notif-full-list');
+    return;
+  }
+
+  container.innerHTML = '<div style="text-align: center; padding: 30px;">📡 Cargando notificaciones...</div>';
+  openM('m-notificaciones');
+
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+
+    if (!notificaciones || notificaciones.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 40px; color: gray;">✨ No hay notificaciones por ahora</div>';
+      return;
+    }
+
+    container.innerHTML = notificaciones.map(n => `
+      <div style="padding: 14px 12px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 12px; align-items: flex-start; background: ${!n.is_read ? '#eef4ff' : 'transparent'};">
+        <div style="font-size: 1.3rem;">${n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '📌'}</div>
+        <div style="flex: 1;">
+          <div style="font-size: 0.85rem; color: #1a1a1a;">${n.message}</div>
+          <div style="font-size: 0.65rem; color: #888; margin-top: 5px;">
+            ${formatFechaRelativa(n.created_at)}
+            ${n.sender_name ? ` · Por: ${n.sender_name}` : ''}
+          </div>
+        </div>
+        ${!n.is_read ? `
+          <button class="btn btn-g btn-xs" onclick="marcarUnaNotificacionLeida('${n.id}')" style="padding: 4px 10px;">
+            Marcar leída
+          </button>
+        ` : '<span style="font-size: 0.6rem; color: green;">✓ Leída</span>'}
+      </div>
+    `).join('');
+
+  } catch (error) {
+    console.error('Error:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 30px; color: red;">❌ Error al cargar notificaciones</div>';
+  }
+}
+
+function formatFechaRelativa(isoDate) {
+  if (!isoDate) return 'fecha desconocida';
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMins = Math.floor((now - date) / 60000);
   
-  // Eliminar ayuda anterior si existe
-  document.getElementById('m-shortcuts')?.remove();
-  document.body.insertAdjacentHTML('beforeend', helpHtml);
+  if (diffMins < 1) return 'ahora mismo';
+  if (diffMins < 60) return `hace ${diffMins} min`;
+  if (diffMins < 1440) return `hace ${Math.floor(diffMins / 60)} horas`;
+  return `hace ${Math.floor(diffMins / 1440)} días`;
+}
+
+async function marcarUnaNotificacionLeida(notifId) {
+  try {
+    await fetch(BASE_URL + '/api/notificaciones/' + notifId + '/leer', {
+      method: 'PATCH',
+      headers: getAuthHeaders()
+    });
+    
+    await actualizarBadgeNotificaciones();
+    await verTodasNotificaciones();
+    toast('Notificación marcada como leída', 's');
+  } catch (error) {
+    console.error('Error:', error);
+    toast('Error al marcar', 'e');
+  }
+}
+
+async function marcarTodasNotificacionesLeidas() {
+  if (!ST.user || !ST.user.id) return;
+  
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+    const noLeidas = notificaciones.filter(n => !n.is_read);
+    
+    for (const n of noLeidas) {
+      await fetch(BASE_URL + '/api/notificaciones/' + n.id + '/leer', {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+    }
+    
+    await verTodasNotificaciones();
+    await actualizarBadgeNotificaciones();
+    toast(`✓ ${noLeidas.length} notificaciones marcadas como leídas`, 's');
+  } catch (error) {
+    console.error('Error:', error);
+    toast('Error al marcar todas', 'e');
+  }
+}
+
+async function actualizarBadgeNotificaciones() {
+  if (!ST.user || !ST.user.id) return;
+  
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+    const noLeidas = notificaciones.filter(n => !n.is_read).length;
+    const badge = document.getElementById('notif-badge');
+    if (badge) {
+      badge.textContent = noLeidas;
+      badge.style.display = noLeidas > 0 ? 'flex' : 'none';
+    }
+  } catch (error) {
+    console.warn('No se pudo actualizar badge:', error);
+  }
+}
+
+// Eliminar ayuda anterior si existe
+document.getElementById('m-shortcuts')?.remove();
+document.body.insertAdjacentHTML('beforeend', helpHtml);
+
 }
