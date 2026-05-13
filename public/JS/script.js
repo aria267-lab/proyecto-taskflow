@@ -81,6 +81,27 @@ const ST = {
   currentTaskId: null,  // para modal detalle
 };
 
+
+// ⭐ FILTRADO DE KANBAN PARA TASK #04
+let showOnlyMyTasks = false;        // Mostrar solo tareas asignadas al usuario
+let kanbanSelectedProject = '';     // ID del proyecto seleccionado
+
+function toggleMyTasks(showMine) {
+  showOnlyMyTasks = showMine;
+  const btnMy = document.getElementById('btn-my-tasks');
+  const btnAll = document.getElementById('btn-all-tasks');
+  if(btnMy) btnMy.classList.toggle('btn-p', showMine);
+  if(btnMy) btnMy.classList.toggle('btn-g', !showMine);
+  if(btnAll) btnAll.classList.toggle('btn-p', !showMine);
+  if(btnAll) btnAll.classList.toggle('btn-g', showMine);
+  renderKanban();
+}
+
+function filterKanbanByProject(projectId) {
+  kanbanSelectedProject = projectId;
+  renderKanban();
+}
+
 /* ══════════════════════════════════════════════
    HELPERS UI
 ══════════════════════════════════════════════ */
@@ -102,8 +123,12 @@ function toast(msg,type='i'){
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';t.style.transition='.3s';setTimeout(()=>t.remove(),300)},3200);
 }
 
-function openM(id){document.getElementById(id).classList.add('open')}
-function closeM(id){document.getElementById(id).classList.remove('open')}
+function openM(id){document.getElementById(id).classList.add('open')
+
+}
+function closeM(id){document.getElementById(id).classList.remove('open')
+
+}
 document.querySelectorAll('.modal-over').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-over.open').forEach(o=>o.classList.remove('open'))});
 
@@ -244,149 +269,6 @@ function getEffectiveUserId() {
 
 
 // ── LOGIN CON API JWT ────────────────────────────────────────
-// ════════════════════════════════════════════
-// REGISTRO DE ACTIVIDADES
-// ════════════════════════════════════════════
-async function logActivity(event, entityType, entityId, payload = {}) {
-  if (!ST.user || !ST.user.id) return;
-
-  try {
-    const res = await fetch(BASE_URL + '/api/activity-log', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + localStorage.getItem('tf_access_token')
-      },
-      body: JSON.stringify({ event, entity_type: entityType, entity_id: entityId, payload })
-    });
-
-    if (res.ok) {
-      console.log('[logActivity] ✅ Registrada:', event);
-      // Si la página de perfil está abierta, actualizar actividad
-      if(document.getElementById('activity-log').style.display !== 'none') {
-        await loadActivityLog();
-      }
-    }
-  } catch(e) {
-    console.error('[logActivity] Error:', e.message);
-  }
-}
-
-// ════════════════════════════════════════════
-// LOGOUT - CERRAR SESIÓN
-// ════════════════════════════════════════════
-async function doLogout(e) {
-  // ⭐ PREVENIR COMPORTAMIENTO POR DEFECTO
-  if (e && typeof e.preventDefault === 'function') {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  console.log('[doLogout] 🚪 Iniciando cierre de sesión...');
-
-  // ⭐ DETENER Y GUARDAR CRONÓMETRO SI ESTÁ ACTIVO
-  if (ST.tRun || ST.tPaused) {
-    console.log('[doLogout] ⏱️ Cronómetro activo - guardando antes de cerrar sesión...');
-    await tStop();
-  }
-
-  // ⭐ DETENER AUTOSAVE DEL CRONÓMETRO
-  if (window.timerAutoSaveInterval) {
-    clearInterval(window.timerAutoSaveInterval);
-    window.timerAutoSaveInterval = null;
-  }
-
-  // ⭐ LIMPIAR TODOS LOS DATOS DE SESIÓN
-  localStorage.clear();  // Limpiar TODO localStorage
-
-  // Asegurar que se remuevan específicamente
-  const keysToRemove = ['tf_user', 'tf_access_token', 'tf_refresh_token', 'tf_login_attempts', 'tf_login_time', 'tf_prefs'];
-  keysToRemove.forEach(key => localStorage.removeItem(key));
-
-  // ⭐ LIMPIAR ESTADO GLOBAL COMPLETAMENTE
-  window.ST = {
-    user: null,
-    projs: [],
-    tasks: [],
-    logs: [],
-    profiles: [],
-    mini: false,
-    tRun: false,
-    tPaused: false,
-    tSec: 0,
-    tInt: null,
-    tSes: 0,
-    tLogId: null,
-    tProj: null,
-    tTask: null,
-    msgInput: '',
-    dragId: null,
-    currentTaskId: null,
-    currentProjId: null
-  };
-
-  window.PREFS = {
-    alto_contraste: false,
-    fuente_dyslexic: false,
-    modo_enfoque: false,
-    tamano_fuente: 'normal',
-    espaciado_letras: 'normal',
-    indicadores_foco: true
-  };
-
-  // ⭐ DETENER CUALQUIER TIMER ACTIVO
-  if (window.timerInterval) clearInterval(window.timerInterval);
-
-  // ⭐ OCULTAR BARRA LATERAL
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) {
-    sidebar.style.display = 'none';
-  }
-
-  // ⭐ LIMPIAR BÚSQUEDA
-  const searchInput = document.getElementById('s-input');
-  if (searchInput) {
-    searchInput.value = '';
-    searchInput.placeholder = 'Busca tu proyecto';
-  }
-
-  // ⭐ MOSTRAR PANTALLA DE LOGIN
-  const authOverlay = document.getElementById('auth-overlay');
-  if (authOverlay) {
-    authOverlay.style.display = 'flex';
-    authOverlay.style.opacity = '1';
-    authOverlay.style.zIndex = '9999';
-  }
-
-  // Resetear a pantalla de login
-  setTimeout(() => {
-    try {
-      showAuth('login');
-
-      // ⭐ LIMPIAR FORMULARIOS
-      const loginForm = document.getElementById('login-form');
-      if (loginForm) loginForm.reset();
-
-      const regForm = document.getElementById('reg-form');
-      if (regForm) regForm.reset();
-
-      // ⭐ LIMPIAR ERRORES
-      const loginErr = document.getElementById('login-err');
-      if (loginErr) loginErr.style.display = 'none';
-
-      const regErr = document.getElementById('reg-err');
-      if (regErr) regErr.style.display = 'none';
-
-      toast('✅ Sesión cerrada correctamente', 's');
-      console.log('[doLogout] ✅ Sesión cerrada - usuario debe loguearse nuevamente');
-    } catch (ex) {
-      console.error('[doLogout] Error:', ex);
-    }
-  }, 100);
-
-  return false;
-}
-
 async function doLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -434,7 +316,7 @@ async function doLogin(e) {
 
 
 // ── REGISTRO ─────────────────────────────────────────────────
-async function doRegister(e) {
+function doRegister(e) {
   e.preventDefault();
   hideError('reg-err');
 
@@ -446,151 +328,98 @@ async function doRegister(e) {
   const role   = document.getElementById('reg-role').value;
   const org    = document.getElementById('reg-org').value.trim() || 'CreativeHub';
   const btn    = e.target.querySelector('button[type="submit"]');
-  const errBox = document.getElementById('reg-err');
 
-  // ⭐ VALIDACIONES EN FRONTEND
+  // Validaciones en orden
   if (!name || !cedula || !email || !pass || !pass2) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ Todos los campos marcados con * son obligatorios.';
+    showError('reg-err', 'Todos los campos marcados con * son obligatorios.');
     return;
   }
-
   if (name.length < 2 || name.length > 120) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ El nombre debe tener entre 2 y 120 caracteres.';
+    showError('reg-err', 'El nombre debe tener entre 2 y 120 caracteres.');
     return;
   }
-
-  const cedulaClean = cedula.replace(/\D/g, '');
-  if (cedulaClean.length < 6 || cedulaClean.length > 10) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La cédula debe tener entre 6 y 10 dígitos.';
+  if (!validateCedula(cedula)) {
+    showError('reg-err', 'La cédula debe contener solo números y tener entre 6 y 10 dígitos.');
     return;
   }
-
   if (!validateEmail(email)) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ El formato del correo no es válido. Ej: usuario@dominio.com';
+    showError('reg-err', 'El formato del correo no es válido. Ej: usuario@dominio.com');
     return;
   }
-
-  // ⭐ VALIDAR CONTRASEÑA CON REQUISITOS ESTRICTOS
-  if (pass.length < 8) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La contraseña debe tener mínimo 8 caracteres.';
+  if (!validatePassword(pass)) {
+    showError('reg-err', 'La contraseña debe tener mínimo 8 caracteres, al menos una letra y un número.');
     return;
   }
-  if (!/[A-Z]/.test(pass)) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La contraseña debe contener al menos una mayúscula (A-Z).';
-    return;
-  }
-  if (!/[a-z]/.test(pass)) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La contraseña debe contener al menos una minúscula (a-z).';
-    return;
-  }
-  if (!/[0-9]/.test(pass)) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La contraseña debe contener al menos un número (0-9).';
-    return;
-  }
-  if (!/[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]/.test(pass)) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ La contraseña debe contener al menos un carácter especial (!@#$%^&* etc).';
-    return;
-  }
-
   if (pass !== pass2) {
-    errBox.style.display = 'block';
-    errBox.innerHTML = '⚠️ Las contraseñas no coinciden.';
+    showError('reg-err', 'Las contraseñas no coinciden.');
     return;
   }
 
   btn.disabled = true;
   btn.textContent = 'Creando cuenta...';
 
-  try {
-    // ⭐ POST REAL A LA API BACKEND
-    const response = await fetch(BASE_URL + '/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        full_name: name,
-        email: email.toLowerCase(),
-        password: pass,
-        cedula: cedulaClean,
-        role: role,
-        organization: org,
-        phone: null,
-        empresa: null
-      })
-    }).then(r => r.json());
-
-    // ⭐ MANEJAR RESPUESTA
-    if (response.error) {
-      errBox.style.display = 'block';
-      if (typeof response.requirements === 'object') {
-        errBox.innerHTML = '❌ ' + response.error + '<br>' + response.requirements.join('<br>');
-      } else {
-        errBox.innerHTML = '❌ ' + response.error;
-      }
-      btn.disabled = false;
-      btn.textContent = 'Crear cuenta';
-      return;
-    }
-
-    if (!response.user || !response.access_token) {
-      errBox.style.display = 'block';
-      errBox.innerHTML = '❌ Error al crear la cuenta. Intenta de nuevo.';
-      btn.disabled = false;
-      btn.textContent = 'Crear cuenta';
-      return;
-    }
-
-    // ⭐ GUARDAR TOKENS Y USER EN LOCALSTORAGE
-    const user = response.user;
-    localStorage.setItem('tf_user', JSON.stringify(user));
-    localStorage.setItem('tf_access_token', response.access_token);
-    localStorage.setItem('tf_refresh_token', response.refresh_token);
-    localStorage.setItem('tf_login_time', Date.now().toString());
-
-    ST.user = user;
-    updateUserUI(user);
-    hideAuth();
-    toast('✓ ¡Bienvenido/a, ' + name.split(' ')[0] + '! Cuenta creada correctamente.', 's');
-
-    // Cargar datos del usuario
-    await loadUserData();
-    renderDash();
-
-  } catch (err) {
-    console.error('[doRegister] Error:', err.message);
-    errBox.style.display = 'block';
-    errBox.innerHTML = '❌ Error de conexión: ' + err.message;
-  } finally {
+  // Verificar duplicados
+  if (findUserByEmail(email)) {
+    showError('reg-err', '❌ Este correo ya está registrado. ¿Olvidaste tu contraseña?');
     btn.disabled = false;
     btn.textContent = 'Crear cuenta';
+    return;
   }
+  if (findUserByCedula(cedula)) {
+    showError('reg-err', '❌ Esta cédula ya está registrada en el sistema.');
+    btn.disabled = false;
+    btn.textContent = 'Crear cuenta';
+    return;
+  }
+
+  // Crear usuario
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const newUser = {
+    id:       'local-' + Date.now(),
+    name,
+    cedula,
+    email,
+    password: pass,       // ⚠️ solo para pruebas locales
+    initials,
+    role,
+    org,
+    created_at: new Date().toISOString()
+  };
+
+  const users = getUsers();
+  users.push(newUser);
+  saveUsers(users);
+
+  // Iniciar sesión automáticamente
+  const sessionUser = { id: newUser.id, name, email, initials, role, org };
+  localStorage.setItem('tf_user', JSON.stringify(sessionUser));
+  ST.user = sessionUser;
+  updateUserUI({ full_name: name, initials, role, organization: org, email });
+  hideAuth();
+  toast('✓ ¡Cuenta creada! Bienvenido/a, ' + name.split(' ')[0], 's');
+  renderDash();
+
+  btn.disabled = false;
+  btn.textContent = 'Crear cuenta';
 }
 
 // ── RECUPERAR CONTRASEÑA ─────────────────────────────────────
 function doRecover(e) {
   e.preventDefault();
   hideError('rec-err');
- 
+
   const email = document.getElementById('rec-email').value.trim();
   const btn   = e.target.querySelector('button[type="submit"]');
- 
+
   if (!validateEmail(email)) {
     const el = document.getElementById('rec-err');
     if (el) { el.style.display = 'block'; el.textContent = 'Ingresa un correo electrónico válido.'; }
     return;
   }
- 
+
   btn.disabled = true;
   btn.textContent = 'Enviando...';
- 
+
   // Simular envío (modo local)
   const user = findUserByEmail(email);
   if (user) {
@@ -611,40 +440,6 @@ function doRecover(e) {
   }, 3000);
 }
 
-/* ══════════════════════════════════════════════
-   ⭐ VALIDAR PERMISOS POR ROL
-══════════════════════════════════════════════ */
-function applyRoleBasedPermissions(user) {
-  const role = user?.role || 'Empleado';
-  const isAdmin = role === 'Admin';
-  const isGerente = role === 'Gerente';
-  const isEmpleado = role === 'Empleado';
-
-  // ⭐ OCULTAR BOTÓN "NUEVO PROYECTO" PARA EMPLEADOS
-  const newProjBtn = document.querySelector('[data-page="create-project"]');
-  if (newProjBtn) {
-    newProjBtn.style.display = (isAdmin || isGerente) ? 'flex' : 'none';
-  }
-
-  // Botón "Nuevo Proyecto" en página de proyectos
-  const newProjPageBtn = document.querySelector('button[onclick*="create-project"]');
-  if (newProjPageBtn) {
-    newProjPageBtn.style.display = (isAdmin || isGerente) ? 'block' : 'none';
-  }
-
-  // ⭐ OCULTAR BOTÓN ELIMINAR EN TAREAS PARA EMPLEADOS
-  const deleteTaskBtn = document.getElementById('mt-del');
-  if (deleteTaskBtn) {
-    deleteTaskBtn.style.display = (isAdmin || isGerente) ? 'block' : 'none';
-  }
-
-  // ⭐ OCULTAR OPCIONES DE ADMINISTRADOR
-  const gestión = document.querySelector('[data-page="reports"]');
-  if (gestión) {
-    gestión.style.display = (isAdmin || isGerente) ? 'flex' : 'none';
-  }
-}
-
 function updateUserUI(u){
   if(!u)return;
   const initials=u.initials||(u.full_name||u.name||'??').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -660,9 +455,6 @@ function updateUserUI(u){
   const ppn=document.getElementById('pf-pname');if(ppn)ppn.value=u.full_name||u.name||'';
   const ppe=document.getElementById('pf-pemail');if(ppe)ppe.value=u.email||'';
   const ppr=document.getElementById('pf-prole');if(ppr)ppr.value=u.role||'Empleado';
-
-  // ⭐ APLICAR RESTRICCIONES DE ROL
-  applyRoleBasedPermissions(u);
 }
 
 /* ══════════════════════════════════════════════
@@ -692,16 +484,14 @@ async function loadAll(){
     if(ST.user?.id && uid2 && !String(uid2).startsWith('local-')){
       const logs = await API.get('/api/tiempos?profile_id='+uid2);
       ST.logs = logs||[];
-      // Restaurar cronómetro activo si existía (solo si NO tiene end_time)
+      // Restaurar cronómetro activo si existía
       const activo = await API.get('/api/tiempos/activo/'+uid2);
-      if(activo && !activo.end_time){
+      if(activo){
         ST.tLogId = activo.id;
         ST.tProj  = activo.project_id;
         ST.tTask  = activo.task_id;
         ST.tSec   = Math.floor((Date.now()-new Date(activo.started_at))/1000);
         tResume();
-        startTimerAutoSave();
-        console.log('[loadAll] ✅ Cronómetro activo restaurado y autosave iniciado');
       }
     }
     populateTimerSelects();
@@ -730,16 +520,6 @@ document.getElementById('sb-tog').addEventListener('click',()=>{
   ST.mini=!ST.mini;
   document.getElementById('sidebar').classList.toggle('mini',ST.mini);
   document.getElementById('main').classList.toggle('wide',ST.mini);
-
-  // Mostrar/ocultar indicador flotante
-  const hint = document.getElementById('sidebar-open-hint');
-  if(ST.mini && hint) {
-    hint.style.display = 'block';
-    console.log('[sidebar] Cerrado - Mostrando indicador flotante');
-  } else if(!ST.mini && hint) {
-    hint.style.display = 'none';
-    console.log('[sidebar] Abierto - Ocultando indicador');
-  }
 });
 
 const TITLES={dashboard:'Dashboard',projects:'Proyectos','create-project':'Nuevo Proyecto',
@@ -756,86 +536,13 @@ function nav(el,pageId){
   document.getElementById('tb-title').textContent=TITLES[pageId]||pageId;
   window.scrollTo(0,0);
   if(pageId==='dashboard')  renderDash();
-  if(pageId==='projects') {
-    // ⭐ RECARGAR PROYECTOS CUANDO NAVEGAS A PROJECTS
-    (async () => {
-      try {
-        if(ST.user?.id) {
-          console.log('[nav projects] Recargando proyectos...');
-          const projs = await API.get('/api/proyectos');
-          ST.projs = projs || [];
-          console.log('[nav projects] Proyectos recargados:', ST.projs);
-          renderProjs();
-        }
-      } catch(e) {
-        console.warn('[nav projects] Error recargando proyectos:', e.message);
-        renderProjs();
-      }
-    })();
-  }
-  if(pageId==='kanban') {
-    // ⭐ RECARGAR DATOS CUANDO NAVEGAS A KANBAN
-    (async () => {
-      try {
-        if(ST.user?.id) {
-          console.log('[nav kanban] Recargando proyectos y tareas...');
-          const [projs, tasks] = await Promise.all([
-            API.get('/api/proyectos'),
-            API.get('/api/tareas')
-          ]);
-          ST.projs = projs || [];
-          ST.tasks = tasks || [];
-          console.log('[nav kanban] Datos recargados');
-          renderKanban();
-        }
-      } catch(e) {
-        console.warn('[nav kanban] Error recargando datos:', e.message);
-        renderKanban();
-      }
-    })();
-  }
-  if(pageId==='timelog') {
-    // ⭐ RECARGAR LOGS Y INICIALIZAR FILTROS CUANDO NAVEGAS A TIMELOG
-    (async () => {
-      try {
-        const uid = getEffectiveUserId();
-        if(uid && ST.user?.id) {
-          console.log('[nav timelog] Recargando logs...');
-          const logs = await API.get('/api/tiempos?profile_id='+uid);
-          ST.logs = logs || [];
-          console.log('[nav timelog] Logs recargados:', ST.logs);
-          initHistoryFilters();
-          renderLog();
-        }
-      } catch(e) {
-        console.warn('[nav timelog] Error recargando logs:', e.message);
-        initHistoryFilters();
-        renderLog();
-      }
-    })();
-  }
+  if(pageId==='projects')   renderProjs();
+  if(pageId==='kanban')     renderKanban();
+  if(pageId==='timelog')    renderLog();
   if(pageId==='reports')    renderRep('week');
-  if(pageId==='timer') {
-    // ⭐ RECARGAR LOGS CUANDO NAVEGAS A TIMER
-    (async () => {
-      try {
-        const uid = getEffectiveUserId();
-        if(uid && ST.user?.id) {
-          console.log('[nav timer] Recargando logs...');
-          const logs = await API.get('/api/tiempos?profile_id='+uid);
-          ST.logs = logs||[];
-          console.log('[nav timer] Logs recargados:', ST.logs);
-          renderTmrLog();
-        }
-      } catch(e) {
-        console.warn('[nav timer] Error recargando logs:', e.message);
-        renderTmrLog();
-      }
-    })();
-  }
+  if(pageId==='timer')      renderTmrLog();
   if(pageId==='profile')    renderProfile();
   if(pageId==='project-detail') renderProjDetail();
-  if(pageId==='task-detail') renderTaskDetail();
 }
 
 /* ══════════════════════════════════════════════
@@ -856,40 +563,6 @@ function updateTmr(){
   const dh=document.getElementById('d-hours');if(dh&&ST.tSec>0){const m=Math.floor(ST.tSec/60);dh.textContent=Math.floor(m/60)+'h '+('0'+m%60).slice(-2)+'m';}
 }
 
-// ⭐ AUTOSAVE DEL CRONÓMETRO EN localStorage (cada 30 segundos)
-function autoSaveTimer() {
-  if (ST.tRun && ST.tLogId && ST.user?.id) {
-    const timerState = {
-      tLogId: ST.tLogId,
-      tProj: ST.tProj,
-      tTask: ST.tTask,
-      tSec: ST.tSec,
-      tRun: ST.tRun,
-      tPaused: ST.tPaused,
-      tSes: ST.tSes,
-      savedAt: new Date().toISOString()
-    };
-    localStorage.setItem('tf_timer_checkpoint', JSON.stringify(timerState));
-    console.log('[autoSaveTimer] 💾 Estado del cronómetro guardado en localStorage');
-  }
-}
-
-// ⭐ INICIAR AUTOSAVE DEL CRONÓMETRO
-function startTimerAutoSave() {
-  if (window.timerAutoSaveInterval) clearInterval(window.timerAutoSaveInterval);
-  window.timerAutoSaveInterval = setInterval(autoSaveTimer, 30000); // Cada 30 segundos
-  console.log('[startTimerAutoSave] ✅ Autosave del cronómetro iniciado (cada 30s)');
-}
-
-// ⭐ DETENER AUTOSAVE DEL CRONÓMETRO
-function stopTimerAutoSave() {
-  if (window.timerAutoSaveInterval) {
-    clearInterval(window.timerAutoSaveInterval);
-    window.timerAutoSaveInterval = null;
-    console.log('[stopTimerAutoSave] ✅ Autosave detenido');
-  }
-}
-
 function tResume(){
   if(ST.tRun)return;
   ST.tRun=true; ST.tPaused=false; ST.tSes++;
@@ -897,7 +570,6 @@ function tResume(){
   document.getElementById('t-p').style.display='';
   document.getElementById('t-x').style.display='';
   ST.tInt=setInterval(()=>{ST.tSec++;updateTmr()},1000);
-  startTimerAutoSave();
 }
 
 async function tStart(){
@@ -914,7 +586,6 @@ async function tStart(){
     ST.tLogId = res.id;
     ST.tSes++;
     tResume();
-    startTimerAutoSave();
     toast('⏱ Cronómetro iniciado','i');
   } catch(ex){ toast('Error iniciando cronómetro','e'); }
 }
@@ -922,7 +593,6 @@ async function tStart(){
 function tPause(){
   if(!ST.tRun)return;
   clearInterval(ST.tInt); ST.tRun=false; ST.tPaused=true;
-  stopTimerAutoSave();
   document.getElementById('t-s').style.display='';
   document.getElementById('t-s').textContent='▶';
   document.getElementById('t-p').style.display='none';
@@ -931,46 +601,14 @@ function tPause(){
 
 async function tStop(){
   clearInterval(ST.tInt); ST.tRun=false; ST.tPaused=false;
-  stopTimerAutoSave();
-  localStorage.removeItem('tf_timer_checkpoint');
-
   if(ST.tSec>0 && ST.user?.id){
     try {
-      console.log('[tStop] Deteniendo cronómetro:', {tLogId: ST.tLogId, tSec: ST.tSec, userId: ST.user.id});
       const res = await API.patch('/api/tiempos/detener',{profile_id:getEffectiveUserId()||ST.user?.id});
-      console.log('[tStop] ✅ Respuesta del servidor:', res);
-
       toast('✓ Registro guardado: '+fmt(ST.tSec),'s');
-
-      // ⭐ RECARGAR TODOS LOS DATOS PARA REFLEJAR CAMBIOS
       const logs = await API.get('/api/tiempos?profile_id='+ST.user.id);
-      console.log('[tStop] Logs recargados:', logs);
       ST.logs = logs||[];
       renderTmrLog();
-
-      // Actualizar dashboard también
-      try {
-        await renderDash();
-        console.log('[tStop] ✅ Dashboard actualizado');
-      } catch(e) {
-        console.warn('[tStop] No se pudo actualizar dashboard:', e.message);
-      }
-
-      // ⭐ REGISTRAR ACTIVIDAD
-      const task = ST.tasks.find(t=>t.id===ST.tTask);
-      const proj = ST.projs.find(p=>p.id===ST.tProj);
-      await logActivity('time_logged', 'time_log', ST.tLogId || 'unknown', {
-        duration_seconds: ST.tSec,
-        task_name: task?.title || '',
-        task_id: ST.tTask,
-        project_name: proj?.name || '',
-        project_id: ST.tProj,
-        duration_formatted: fmt(ST.tSec)
-      });
-    } catch(ex){
-      console.error('[tStop] Error:', ex);
-      toast('Sesión guardada localmente','i');
-    }
+    } catch(ex){ toast('Sesión guardada localmente','i'); }
   }
   ST.tSec=0; ST.tLogId=null; updateTmr();
   document.getElementById('t-s').style.display='';
@@ -981,41 +619,10 @@ async function tStop(){
 
 function renderTmrLog(){
   const el=document.getElementById('tmr-log');if(!el)return;
-
-  console.log('[renderTmrLog] ST.logs:', ST.logs);
-
-  // ⭐ FILTRAR SOLO SESIONES DE HOY
-  const today = new Date().toDateString();
-  const todayLogs = (ST.logs || []).filter(l => {
-    if(!l.started_at) return false;
-    const logDate = new Date(l.started_at).toDateString();
-    const match = logDate === today;
-    console.log('[renderTmrLog] Log:', {started_at: l.started_at, logDate, today, match});
-    return match;
-  });
-
-  console.log('[renderTmrLog] todayLogs después filtro:', todayLogs);
-
-  const items = todayLogs.slice(0,6);
-
-  if(!items.length){
-    console.log('[renderTmrLog] Sin registros para hoy');
-    el.innerHTML='<div style="color:var(--t2);font-size:.78rem;text-align:center;padding:12px">Sin registros hoy</div>';
-    return;
-  }
-
-  // Mostrar cantidad de sesiones hoy
-  const sessionsCount = document.getElementById('tmr-sessions-today');
-  if(sessionsCount) {
-    const activeCount = todayLogs.filter(l => l.is_active).length;
-    const completedCount = todayLogs.filter(l => !l.is_active).length;
-    sessionsCount.textContent = todayLogs.length;
-  }
-
+  const items=ST.logs.slice(0,4);
+  if(!items.length){el.innerHTML='<div style="color:var(--t2);font-size:.78rem;text-align:center;padding:12px">Sin registros aún</div>';return}
   el.innerHTML=items.map(l=>{
-    // ⭐ CAMPO CORRECTO: duration_sec (no duration_seconds)
     const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active?'activo…':'—');
-    console.log('[renderTmrLog] Renderizando item:', {task: l.task_title, duration: l.duration_sec, dur});
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)">
       <div><div style="font-size:.79rem;font-weight:600">${l.task_title||l.task||''}</div>
       <div style="font-size:.64rem;color:var(--t2)">${l.project_name||l.proj||''}</div></div>
@@ -1028,10 +635,30 @@ function renderTmrLog(){
    KANBAN
 ══════════════════════════════════════════════ */
 function renderKanban(){
-  // ⭐ Mostrar/ocultar indicador de filtro
-  const filterIndicator = document.getElementById('kanban-filter-indicator');
-  if(filterIndicator) {
-    filterIndicator.style.display = kanbanFilterByUser ? 'flex' : 'none';
+  // ⭐ ACTUALIZAR CONTROLES DE KANBAN - TASK #04
+  const projectSelect = document.getElementById('kanban-project-filter');
+  if(projectSelect) {
+    projectSelect.innerHTML = '<option value="">Todos los proyectos</option>';
+    ST.projs.forEach(p => {
+      projectSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+    projectSelect.value = kanbanSelectedProject;
+  }
+
+  const btnMy = document.getElementById('btn-my-tasks');
+  const btnAll = document.getElementById('btn-all-tasks');
+  if(btnMy && btnAll) {
+    if(showOnlyMyTasks) {
+      btnMy.classList.add('btn-p');
+      btnMy.classList.remove('btn-g');
+      btnAll.classList.add('btn-g');
+      btnAll.classList.remove('btn-p');
+    } else {
+      btnMy.classList.add('btn-g');
+      btnMy.classList.remove('btn-p');
+      btnAll.classList.add('btn-p');
+      btnAll.classList.remove('btn-g');
+    }
   }
 
   ['todo','progress','done'].forEach(col=>{
@@ -1039,10 +666,16 @@ function renderKanban(){
     const cnt=document.getElementById('cnt-'+col);
     if(!wrap||!cnt)return;
     let tasks=ST.tasks.filter(t=>t.column_status===col);
-    // ⭐ Si hay filtro de usuario, mostrar solo las tareas asignadas a ese usuario
-    if(kanbanFilterByUser) {
-      tasks = tasks.filter(t=>t.assigned_to===kanbanFilterByUser);
+
+    // ⭐ APLICAR FILTROS - TASK #04
+    if(showOnlyMyTasks) {
+      const uid = getEffectiveUserId();
+      tasks = tasks.filter(t=>t.assigned_to===uid);
     }
+    if(kanbanSelectedProject) {
+      tasks = tasks.filter(t=>t.project_id===kanbanSelectedProject);
+    }
+
     cnt.textContent=tasks.length;
     wrap.innerHTML='';
     tasks.forEach(t=>{
@@ -1097,58 +730,11 @@ function initKanbanDrop(){
           ST.projs = projs||ST.projs;
           renderKanban();
           toast('Tarea → "'+COL_NAME[col]+'"','s');
-
-          // ⭐ REGISTRAR ACTIVIDAD
-          if(col === 'done') {
-            const proj = ST.projs.find(p=>p.id===t.project_id);
-            await logActivity('task_completed', 'task', t.id, {
-              task_name: t.title,
-              project_name: proj?.name || '',
-              project_id: t.project_id
-            });
-          } else if(col === 'progress' || col === 'todo' || col === 'review') {
-            const proj = ST.projs.find(p=>p.id===t.project_id);
-            await logActivity('task_moved', 'task', t.id, {
-              task_name: t.title,
-              project_name: proj?.name || '',
-              from_status: t.column_status,
-              to_status: col
-            });
-          }
         } catch(ex){ toast('Error moviendo tarea','e'); }
       }
       ST.dragId=null;
     });
   });
-}
-
-function renderTaskDetail(){
-  const task = ST.tasks.find(t => t.id === ST.currentTaskId);
-  if(!task) {
-    console.warn('Task not found:', ST.currentTaskId);
-    return;
-  }
-
-  // Actualizar elementos de detalle
-  const nameEl = document.getElementById('td-name');
-  if(nameEl) nameEl.value = task.title || '';
-
-  const descEl = document.getElementById('td-desc');
-  if(descEl) descEl.value = task.description || '';
-
-  const prioEl = document.getElementById('td-prio');
-  if(prioEl) prioEl.value = task.priority || 'Media';
-
-  const statusEl = document.getElementById('td-status');
-  if(statusEl) {
-    const statusMap = {todo: 'Por hacer', progress: 'En progreso', review: 'En revisión', done: 'Completada'};
-    statusEl.value = statusMap[task.column_status] || task.column_status || 'Por hacer';
-  }
-}
-
-function openTaskDetail(id){
-  ST.currentTaskId = id;
-  nav(document.querySelector('[data-page=task-detail]'), 'task-detail');
 }
 
 function editTask(id){
@@ -1157,28 +743,6 @@ function editTask(id){
   document.getElementById('mt-desc').value=t.description||'';
   document.getElementById('mt-prio').value=t.priority||'Media';
   document.getElementById('mt-date').value=t.due_date||'';
-
-  // ⭐ VALIDAR PERMISOS PARA ELIMINAR
-  const deleteBtn = document.getElementById('mt-del');
-  const canDelete = ST.user?.role === 'Admin' || ST.user?.role === 'Gerente';
-
-  if (deleteBtn) {
-    if (canDelete) {
-      deleteBtn.style.display = 'block';
-      deleteBtn.onclick=async()=>{
-        if(confirm('¿Estás seguro de que deseas eliminar esta tarea?')){
-          try {
-            await API.delete('/api/tareas/'+id);
-            ST.tasks=ST.tasks.filter(x=>x.id!==id);
-            renderKanban(); closeM('m-task'); toast('Tarea eliminada','i');
-          } catch(ex){ toast('Error eliminando tarea','e'); }
-        }
-      };
-    } else {
-      deleteBtn.style.display = 'none';
-    }
-  }
-
   document.getElementById('mt-save').onclick=async()=>{
     const body={
       title:   document.getElementById('mt-name').value.trim()||t.title,
@@ -1192,13 +756,32 @@ function editTask(id){
       renderKanban(); closeM('m-task'); toast('Tarea actualizada','s');
     } catch(ex){ toast('Error actualizando tarea','e'); }
   };
-
+  document.getElementById('mt-del').onclick=async()=>{
+    try {
+      await API.delete('/api/tareas/'+id);
+      ST.tasks=ST.tasks.filter(x=>x.id!==id);
+      renderKanban(); closeM('m-task'); toast('Tarea eliminada','i');
+    } catch(ex){ toast('Error eliminando tarea','e'); }
+  };
   openM('m-task');
 }
 
 function openNewTask(col='todo'){
   document.getElementById('nt-col').value=col;
   document.getElementById('nt-form').reset();
+
+  // ⭐ LLENAR SELECTOR DE PROYECTOS - TASK #04
+  const projSelect = document.getElementById('nt-project');
+  if(projSelect) {
+    projSelect.innerHTML = '<option value="">Selecciona un proyecto</option>';
+    ST.projs.forEach(p => {
+      projSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+    if(kanbanSelectedProject) {
+      projSelect.value = kanbanSelectedProject;
+    }
+  }
+
   openM('m-newtask');
 }
 
@@ -1206,9 +789,9 @@ async function doNewTask(e){
   e.preventDefault();
   const title=document.getElementById('nt-name').value.trim();if(!title)return;
   const col=document.getElementById('nt-col').value;
-  // Usar primer proyecto disponible o el seleccionado en cronómetro
-  const project_id = document.getElementById('nt-proj')?.value || ST.tProj || (ST.projs[0]?.id);
-  if(!project_id){toast('Crea un proyecto primero','e');return}
+  // ⭐ USAR PROYECTO SELECCIONADO EN EL MODAL - TASK #04
+  const project_id = document.getElementById('nt-project')?.value || ST.tProj || (ST.projs[0]?.id);
+  if(!project_id){toast('Selecciona un proyecto','e');return}
   const uid = getEffectiveUserId() || ST.user?.id || 'local';
   const body={
     project_id,
@@ -1248,15 +831,6 @@ async function doNewTask(e){
       const tasks=await API.get('/api/tareas');
       ST.tasks=tasks||ST.tasks;
       OFFLINE.saveTasks(ST.tasks);
-
-      // ⭐ REGISTRAR ACTIVIDAD
-      const proj = ST.projs.find(p=>p.id===body.project_id);
-      await logActivity('task_created', 'task', newT?.id || 'unknown', {
-        task_name: title,
-        project_name: proj?.name || '',
-        project_id: body.project_id
-      });
-
       renderKanban(); closeM('m-newtask'); toast('✓ Tarea creada','s');
       populateTimerSelects();
     } catch(ex){
@@ -1276,142 +850,30 @@ async function renderDash(){
       const uid4 = getEffectiveUserId();
       if(!uid4 || String(uid4).startsWith('local-')) throw new Error('local user');
       const d=await API.get('/api/dashboard/'+uid4);
-
-      // ⭐ PROYECTOS ACTIVOS
       const dp=document.getElementById('d-projs');if(dp)dp.textContent=d.active_projects;
-      const dpm=document.getElementById('d-projs-month');if(dpm)dpm.textContent=`↑ ${d.projects_new_this_month || 0}`;
-
-      // ⭐ TAREAS PENDIENTES
       const dt=document.getElementById('d-tasks');if(dt)dt.textContent=d.pending_tasks;
-      const dhp=document.getElementById('d-high-priority');if(dhp)dhp.textContent=d.high_priority_tasks || 0;
-
-      // ⭐ ACTUALIZAR MÉTRICAS DE TIEMPO EN DASHBOARD
-      const todayHours = document.getElementById('d-today-hours');
-      if(todayHours) {
-        const sec = parseInt(d.seconds_today) || 0;
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        todayHours.textContent = `${h}h ${m}m`;
-      }
-
-      const weekHours = document.getElementById('d-week-hours');
-      if(weekHours) {
-        const sec = parseInt(d.seconds_this_week) || 0;
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        weekHours.textContent = `${h}h ${m}m`;
-      }
-
-      // ⭐ ACTUALIZAR INDICADOR DE PRODUCTIVIDAD EN DASHBOARD
-      const prodSub = document.getElementById('d-productivity-sub');
-      if(prodSub) {
-        const change = parseInt(d.productivity_change) || 0;
-        const isUp = change >= 0;
-        const arrow = isUp ? '↑' : '↓';
-        const trendClass = isUp ? 'up' : 'dn';
-        prodSub.innerHTML = `<span class="trend ${trendClass}">${arrow} ${Math.abs(change)}%</span> vs semana anterior`;
-      }
-
-      // ⭐ RENDERIZAR GRÁFICO DE PRODUCTIVIDAD SEMANAL CON DATOS REALES
-      const weeklyChart = document.getElementById('d-weekly-chart');
-      if(weeklyChart) {
-        try {
-          const weekData = await API.get('/api/weekly-hours/'+uid4);
-          const maxHours = Math.max(...weekData.map(d => d.hours), 1);
-          weeklyChart.innerHTML = weekData.map(d => {
-            const height = maxHours > 0 ? (d.hours / maxHours) * 100 : 0;
-            const color = d.hours === 0 ? 'var(--s2)' : 'var(--blue)';
-            const valColor = d.hours === 0 ? 'var(--t2)' : 'var(--t1)';
-            return `<div class="bch-item">
-              <span class="bch-val" style="color:${valColor}">${d.hours}h</span>
-              <div class="bch-bar" style="height:${height}%;background:${color}"></div>
-              <span class="bch-lbl">${d.day}</span>
-            </div>`;
-          }).join('');
-        } catch(ex) {
-          console.warn('weekly hours error', ex);
-          weeklyChart.innerHTML = '<div style="color:var(--t2);text-align:center;padding:12px;font-size:.78rem">Sin datos</div>';
-        }
-      }
-
-      // ⭐ RENDERIZAR NOTIFICACIONES (SIN CLICKEABLE)
-      const notifList = document.getElementById('d-notif-list');
-      if(notifList && d.recent_tasks) {
-        const notifs = d.recent_tasks.slice(0, 3).map(t => {
-          const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
-          const color = colors[t.priority] || 'var(--s2)';
-          return `<div class="notif-i">
-            <div class="notif-dot" style="background:${color}"></div>
-            <div><div class="notif-b"><strong>${t.title}</strong></div>
-            <div class="notif-t">${t.project_name || ''}</div></div>
-          </div>`;
-        }).join('');
-        notifList.innerHTML = notifs || '<div style="text-align:center;color:var(--t2);padding:12px;font-size:.78rem">Sin notificaciones</div>';
-      }
-
-      // ⭐ MIS TAREAS PENDIENTES (asignadas al usuario actual, max 5)
-      const myTasksList = document.getElementById('d-my-tasks-list');
-      if(myTasksList) {
-        const uid = getEffectiveUserId();
-        const myPendingTasks = ST.tasks.filter(t =>
-          t.assigned_to === uid &&
-          t.column_status !== 'done'
-        ).slice(0, 5);
-
-        if(myPendingTasks.length === 0) {
-          myTasksList.innerHTML = '<div style="text-align:center;color:var(--t2);padding:16px;font-size:.78rem">Sin tareas asignadas</div>';
-        } else {
-          myTasksList.innerHTML = myPendingTasks.map(t => {
-            const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
-            const color = colors[t.priority] || 'var(--s2)';
-            return `<div class="row ai-c g12" style="padding:10px;border-radius:var(--r);border:1px solid var(--bdr);cursor:pointer;transition:background .2s" onclick="openTaskDetail('${t.id}')" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
-              <div class="f1" style="min-width:0">
-                <div style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
-                <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${t.project_name || ''}</div>
-              </div>
-              <span class="tag ${PRIO_TAG[t.priority]||'t-amb'}" style="flex-shrink:0;font-size:.65rem">${t.priority||'Media'}</span>
-              <span style="font-size:.7rem;color:var(--t2);flex-shrink:0;font-family:var(--mono);min-width:70px;text-align:right">${t.due_date||'—'}</span>
-            </div>`;
-          }).join('');
-        }
+      const tb=document.getElementById('d-tbody');
+      if(tb && d.recent_tasks){
+        tb.innerHTML=d.recent_tasks.map(t=>`
+          <tr>
+            <td class="td-p">${t.title}</td>
+            <td style="font-size:.75rem">${t.project_name||''}</td>
+            <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
+            <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
+            <td><span class="tag ${t.column_status==='progress'?'t-blue':'t-gray'}">${COL_NAME[t.column_status]||t.column_status}</span></td>
+          </tr>`).join('');
       }
     } catch(ex){ console.warn('dashboard error', ex); }
   } else {
-    // Sin sesión: mostrar datos locales cacheados en "Mis Tareas Pendientes"
-    const myTasksList = document.getElementById('d-my-tasks-list');
-    if(!myTasksList) return;
-    const pen = ST.tasks.filter(t => t.column_status !== 'done').slice(0, 5);
-    if(pen.length === 0) {
-      myTasksList.innerHTML = '<div style="text-align:center;color:var(--t2);padding:16px;font-size:.78rem">Sin tareas</div>';
-    } else {
-      myTasksList.innerHTML = pen.map(t => {
-        const colors = {Alta: 'var(--ros)', Media: 'var(--blue)', Baja: 'var(--amb)'};
-        return `<div class="row ai-c g12" style="padding:10px;border-radius:var(--r);border:1px solid var(--bdr);cursor:pointer;transition:background .2s" onclick="openTaskDetail('${t.id}')" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='transparent'">
-          <div class="f1" style="min-width:0">
-            <div style="font-size:.8rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
-            <div style="font-size:.7rem;color:var(--t2);margin-top:2px">${t.project_name || ''}</div>
-          </div>
-          <span class="tag ${PRIO_TAG[t.priority]||'t-amb'}" style="flex-shrink:0;font-size:.65rem">${t.priority||'Media'}</span>
-          <span style="font-size:.7rem;color:var(--t2);flex-shrink:0;font-family:var(--mono);min-width:70px;text-align:right">${t.due_date||'—'}</span>
-        </div>`;
-      }).join('');
-    }
+    // Sin sesión: mostrar datos locales cacheados
+    const tb=document.getElementById('d-tbody');if(!tb)return;
+    const pen=ST.tasks.filter(t=>t.column_status!=='done').slice(0,6);
+    tb.innerHTML=pen.map(t=>`<tr>
+      <td class="td-p">${t.title}</td><td style="font-size:.75rem">${t.project_name||''}</td>
+      <td><span class="tag ${PRIO_TAG[t.priority]||'t-amb'}">${t.priority||''}</span></td>
+      <td style="font-family:var(--mono);font-size:.71rem">${t.due_date||'—'}</td>
+      <td><span class="tag t-gray">${COL_NAME[t.column_status]||''}</span></td></tr>`).join('');
   }
-}
-
-/* ══════════════════════════════════════════════
-   KANBAN FILTERING
-══════════════════════════════════════════════ */
-let kanbanFilterByUser = null; // ID del usuario para filtrar tareas en Kanban
-
-function filterKanbanByUser(userId) {
-  kanbanFilterByUser = userId;
-  renderKanban();
-}
-
-function clearKanbanFilter() {
-  kanbanFilterByUser = null;
-  renderKanban();
 }
 
 /* ══════════════════════════════════════════════
@@ -1483,13 +945,6 @@ function renderProjDetail(){
 ══════════════════════════════════════════════ */
 async function doNewProj(e){
   e.preventDefault();
-
-  // ⭐ VALIDAR PERMISOS: Solo Admin y Gerente pueden crear proyectos
-  if (ST.user?.role !== 'Admin' && ST.user?.role !== 'Gerente') {
-    toast('❌ Solo Administradores y Gerentes pueden crear proyectos', 'e');
-    return;
-  }
-
   const name=document.getElementById('pf-name').value.trim();if(!name)return;
   const uid = getEffectiveUserId() || ST.user?.id || 'local';
   const body={
@@ -1544,235 +999,6 @@ async function doNewProj(e){
 /* ══════════════════════════════════════════════
    HISTORIAL DE TIEMPO
 ══════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════
-   HISTORIAL - FILTRADO Y EXPORTACIÓN
-══════════════════════════════════════════════ */
-
-function initHistoryFilters(){
-  const select = document.getElementById('log-project-filter');
-  if(!select) {
-    console.warn('[initHistoryFilters] Select element not found');
-    return;
-  }
-
-  console.log('[initHistoryFilters] ST.projs:', ST.projs);
-
-  // Limpiar opciones existentes (excepto la de "Todos")
-  const options = select.querySelectorAll('option');
-  options.forEach((opt, idx) => {
-    if(idx > 0) opt.remove(); // Mantener la primera opción (Todos los proyectos)
-  });
-
-  // Añadir proyectos desde ST.projs
-  if(ST.projs && ST.projs.length > 0) {
-    ST.projs.forEach(proj => {
-      const option = document.createElement('option');
-      option.value = proj.id || proj.project_id;
-      option.textContent = proj.name || proj.proj_name || 'Sin nombre';
-      select.appendChild(option);
-    });
-    console.log(`[initHistoryFilters] ${ST.projs.length} proyectos cargados en dropdown`);
-  } else {
-    console.warn('[initHistoryFilters] ST.projs está vacío o indefinido');
-  }
-}
-
-function filterAndRenderLog(){
-  const startDate = document.getElementById('log-date-start')?.value;
-  const endDate = document.getElementById('log-date-end')?.value;
-  const projectFilter = document.getElementById('log-project-filter')?.value;
-
-  console.log(`[filterLog] Filtrando: ${startDate} a ${endDate}, proyecto: ${projectFilter}`);
-
-  // Convertir fechas a timestamps para comparación
-  const start = startDate ? new Date(startDate).getTime() : 0;
-  const end = endDate ? new Date(endDate).getTime() + 86400000 : Date.now(); // +1 día para incluir el día final completo
-
-  // Filtrar logs
-  const filtered = ST.logs.filter(log => {
-    const logDate = new Date(log.started_at).getTime();
-
-    // Filtro de fecha
-    if (logDate < start || logDate > end) return false;
-
-    // Filtro de proyecto
-    if (projectFilter && log.project_id !== projectFilter) return false;
-
-    return true;
-  });
-
-  console.log(`[filterLog] ${filtered.length} registros después del filtro`);
-
-  // Renderizar logs filtrados
-  const tb = document.getElementById('log-tbody');
-  if (!tb) return;
-
-  if (!filtered.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Sin registros en este período</td></tr>';
-    const tot = document.getElementById('log-tot');
-    if (tot) tot.textContent = '0 registros';
-    return;
-  }
-
-  tb.innerHTML = filtered.map(l => {
-    const dur = l.duration_sec ? fmt(l.duration_sec) : (l.is_active ? 'activo' : '—');
-    const fecha = l.started_at ? new Date(l.started_at).toLocaleDateString('es-VE', {day: '2-digit', month: 'short', year: 'numeric'}) : '—';
-    const inicio = l.started_at ? new Date(l.started_at).toLocaleTimeString('es-VE', {hour: '2-digit', minute: '2-digit'}) : '—';
-    const fin = l.ended_at ? new Date(l.ended_at).toLocaleTimeString('es-VE', {hour: '2-digit', minute: '2-digit'}) : '—';
-    return `<tr>
-      <td style="font-family:var(--mono);font-size:.7rem">${fecha}</td>
-      <td class="td-p">${l.task_title || l.task || ''}</td>
-      <td><span class="tag t-blue">${(l.project_name || l.proj || '').split(' ')[0]}</span></td>
-      <td style="font-family:var(--mono);font-size:.7rem">${inicio}</td>
-      <td style="font-family:var(--mono);font-size:.7rem">${fin}</td>
-      <td><span style="font-family:var(--mono);font-size:.78rem;font-weight:700;color:${l.is_active ? 'var(--blue)' : 'var(--t1)'}">${dur}${l.is_active ? ' ●' : ''}</span></td>
-      <td><button class="btn btn-g btn-xs" onclick="toast('Sin cambios permitidos en historial','i')">Ver</button></td>
-    </tr>`;
-  }).join('');
-
-  // Calcular total de horas
-  const totalSecs = filtered.reduce((sum, log) => sum + (log.duration_sec || 0), 0);
-  const tot = document.getElementById('log-tot');
-  if (tot) tot.textContent = `${filtered.length} registros • Total: ${fmt(totalSecs)}`;
-}
-
-function exportLogToPDF(){
-  const startDate = document.getElementById('log-date-start')?.value;
-  const endDate = document.getElementById('log-date-end')?.value;
-  const projectFilter = document.getElementById('log-project-filter')?.value;
-
-  // Obtener logs filtrados
-  const start = startDate ? new Date(startDate).getTime() : 0;
-  const end = endDate ? new Date(endDate).getTime() + 86400000 : Date.now();
-
-  const filtered = ST.logs.filter(log => {
-    const logDate = new Date(log.started_at).getTime();
-    if (logDate < start || logDate > end) return false;
-    if (projectFilter && log.project_id !== projectFilter) return false;
-    return true;
-  });
-
-  if (!filtered.length) {
-    toast('No hay datos para exportar en este período', 'w');
-    return;
-  }
-
-  // Crear tabla HTML para PDF
-  let html = `
-    <h2>Historial de Tiempo</h2>
-    <p>Período: ${startDate} a ${endDate}</p>
-    <table border="1" cellpadding="8" style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="background:#f0f0f0;">
-          <th>Fecha</th>
-          <th>Tarea</th>
-          <th>Proyecto</th>
-          <th>Inicio</th>
-          <th>Fin</th>
-          <th>Duración</th>
-          <th>Usuario</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  let totalSecs = 0;
-  filtered.forEach(log => {
-    const fecha = log.started_at ? new Date(log.started_at).toLocaleDateString('es-VE') : '—';
-    const inicio = log.started_at ? new Date(log.started_at).toLocaleTimeString('es-VE') : '—';
-    const fin = log.ended_at ? new Date(log.ended_at).toLocaleTimeString('es-VE') : '—';
-    const dur = log.duration_sec ? fmt(log.duration_sec) : '—';
-    const user = log.user_name || '—';
-
-    html += `
-      <tr>
-        <td>${fecha}</td>
-        <td>${log.task_title || log.task || '—'}</td>
-        <td>${log.project_name || log.proj || '—'}</td>
-        <td>${inicio}</td>
-        <td>${fin}</td>
-        <td>${dur}</td>
-        <td>${user}</td>
-      </tr>
-    `;
-
-    totalSecs += log.duration_sec || 0;
-  });
-
-  html += `
-      </tbody>
-    </table>
-    <p style="margin-top:20px;"><strong>Total período: ${fmt(totalSecs)}</strong></p>
-    <p style="margin-top:10px;font-size:0.9rem;color:#666;">Generado: ${new Date().toLocaleString('es-VE')}</p>
-  `;
-
-  // Descargar como PDF usando html2pdf
-  const element = document.createElement('div');
-  element.innerHTML = html;
-  element.style.padding = '20px';
-
-  console.log('[exportLogToPDF] Iniciando exportación...', { html2pdf: typeof html2pdf });
-
-  // Usar html2pdf si está disponible
-  if (typeof html2pdf !== 'undefined') {
-    try {
-      html2pdf()
-        .set({
-          margin: 10,
-          filename: `historial-tiempo-${startDate}-${endDate}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
-        })
-        .from(element)
-        .save();
-      console.log(`[exportLogToPDF] PDF generado exitosamente con ${filtered.length} registros`);
-      toast('PDF descargado correctamente', 's');
-    } catch (e) {
-      console.error('[exportLogToPDF] Error con html2pdf, usando fallback:', e);
-      downloadHTMLFallback();
-    }
-  } else {
-    console.warn('[exportLogToPDF] html2pdf no disponible, usando fallback HTML');
-    downloadHTMLFallback();
-  }
-
-  function downloadHTMLFallback() {
-    // Fallback: Descargar como HTML imprimible
-    const fullHtml = `<!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Historial de Tiempo</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f0f0f0; font-weight: bold; }
-          h2 { color: #333; }
-          p { color: #666; }
-        </style>
-      </head>
-      <body>
-        ${html}
-      </body>
-    </html>`;
-
-    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `historial-tiempo-${startDate}-${endDate}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast('HTML descargado correctamente (abre en navegador para convertir a PDF)', 's');
-    console.log(`[exportLogToPDF] HTML fallback descargado con ${filtered.length} registros`);
-  }
-}
-
 function renderLog(){
   const tb=document.getElementById('log-tbody');if(!tb)return;
   if(!ST.logs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Sin registros de tiempo aún</td></tr>';return}
@@ -1836,76 +1062,9 @@ async function renderRep(period,btn){
 /* ══════════════════════════════════════════════
    PERFIL
 ══════════════════════════════════════════════ */
-async function renderProfile(){
-  // Actualizar datos del usuario
-  if(ST.user && ST.user.id) {
-    document.getElementById('prof-name').textContent = ST.user.full_name || 'Usuario';
-    document.getElementById('prof-email').textContent = ST.user.email || '';
-    document.getElementById('prof-role').textContent = ST.user.role || 'Empleado';
-    document.getElementById('prof-av').textContent = ST.user.initials || 'U';
-    document.getElementById('pf-pname').value = ST.user.full_name || '';
-    document.getElementById('pf-pemail').value = ST.user.email || '';
-    document.getElementById('pf-prole').value = ST.user.role || 'Empleado';
-  }
-
-  // Actualizar contadores
-  const pc=document.getElementById('p-pcount');
-  if(pc) pc.textContent = ST.projs.filter(p=>p.status==='Activo').length;
-  const tc=document.getElementById('p-tcount');
-  if(tc) tc.textContent = ST.tasks.filter(t=>t.column_status!=='done').length;
-
-  // Cargar actividad reciente
-  await loadActivityLog();
-}
-
-async function loadActivityLog(){
-  if(!ST.user || !ST.user.id) return;
-
-  try {
-    const logs = await API.get('/api/activity-log?limit=10&user_id='+ST.user.id);
-    const container = document.getElementById('activity-log');
-
-    if(!logs || logs.length === 0) {
-      container.innerHTML = '<div style="text-align:center;color:var(--t2);padding:20px;font-size:0.85rem">No hay actividad reciente</div>';
-      return;
-    }
-
-    // Mapeo de iconos y colores por tipo de evento
-    const eventConfig = {
-      'task_created': { icon: '✚', color: 'blue-l', label: 'Creó tarea' },
-      'task_completed': { icon: '✓', color: 'grn-l', label: 'Completó tarea' },
-      'task_updated': { icon: '✎', color: 'amb-l', label: 'Actualizó tarea' },
-      'task_moved': { icon: '→', color: 'teal-l', label: 'Movió tarea' },
-      'task_commented': { icon: '💬', color: 'amb-l', label: 'Comentó en tarea' },
-      'project_created': { icon: '📁', color: 's2', label: 'Creó proyecto' },
-      'time_logged': { icon: '⏱', color: 'blue-l', label: 'Registró tiempo' },
-      'member_added': { icon: '👤', color: 'teal-l', label: 'Agregó miembro' }
-    };
-
-    container.innerHTML = logs.map(log => {
-      const config = eventConfig[log.event] || { icon: '•', color: 's2', label: log.event };
-      const taskName = log.payload?.task_name || log.payload?.title || '';
-      const projectName = log.payload?.project_name || log.payload?.project || '';
-      const entityName = taskName || projectName || 'elemento';
-
-      const date = new Date(log.created_at);
-      const timeStr = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-      const dateStr = date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-
-      return `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--bdr)">
-          <div style="width:26px;height:26px;background:var(--${config.color});border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.66rem;flex-shrink:0">${config.icon}</div>
-          <div>
-            <div style="font-size:.77rem;font-weight:500">${config.label} <strong>"${entityName}"</strong></div>
-            <div style="font-size:.63rem;color:var(--t2);margin-top:1px">${dateStr} ${timeStr}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch(e) {
-    console.error('[loadActivityLog]', e.message);
-    document.getElementById('activity-log').innerHTML = '<div style="text-align:center;color:var(--t2);padding:20px;font-size:0.85rem">Error cargando actividad</div>';
-  }
+function renderProfile(){
+  const pc=document.getElementById('p-pcount');if(pc)pc.textContent=ST.projs.filter(p=>p.status==='Activo').length;
+  const tc=document.getElementById('p-tcount');if(tc)tc.textContent=ST.tasks.filter(t=>t.column_status!=='done').length;
 }
 
 document.querySelector('#pg-profile .btn.btn-p.btn-sm')?.addEventListener('click', async ()=>{
@@ -2091,144 +1250,41 @@ document.addEventListener('click', (e) => {
 renderNotif();
 
 /* ══════════════════════════════════════════════
-   SIDEBAR TOGGLE
-══════════════════════════════════════════════ */
-function toggleSidebar() {
-  ST.mini = !ST.mini;
-  const sb = document.getElementById('sidebar');
-  if(ST.mini) {
-    sb?.classList.add('mini');
-    localStorage.setItem('sidebar-state', 'mini');
-    console.log('[toggleSidebar] 👈 Sidebar cerrada');
-  } else {
-    sb?.classList.remove('mini');
-    localStorage.setItem('sidebar-state', 'normal');
-    console.log('[toggleSidebar] 👉 Sidebar abierta');
-  }
-}
-
-function restoreSidebarState() {
-  const saved = localStorage.getItem('sidebar-state');
-  if(saved === 'mini') {
-    ST.mini = true;
-    document.getElementById('sidebar')?.classList.add('mini');
-    console.log('[restoreSidebarState] Sidebar restaurada: cerrada');
-  } else {
-    ST.mini = false;
-    document.getElementById('sidebar')?.classList.remove('mini');
-    console.log('[restoreSidebarState] Sidebar restaurada: abierta');
-  }
-}
-
-/* ══════════════════════════════════════════════
    INICIALIZACIÓN
 ══════════════════════════════════════════════ */
 (async function init(){
-  // ⭐ RESTAURAR ESTADO DE SIDEBAR
-  restoreSidebarState();
-
   initKanbanDrop();
 
-  // ⭐ LIMPIAR BARRA DE BÚSQUEDA (ocultar autofill)
-  const searchInput = document.getElementById('s-input');
-  if(searchInput) {
-    searchInput.value = '';
-    // Limpiar también cuando reciba focus
-    searchInput.addEventListener('focus', (e) => {
-      if(e.target.value) {
-        e.target.value = '';
-      }
-    });
-    // Limpiar periódicamente por si el navegador intenta re-llenar
-    setInterval(() => {
-      if(searchInput.value && searchInput !== document.activeElement) {
-        searchInput.value = '';
-      }
-    }, 500);
-  }
-
-  // ⭐ MOSTRAR PANTALLA DE LOGIN POR DEFECTO
-  const authOverlay = document.getElementById('auth-overlay');
-  authOverlay.style.display = 'flex';
-  showAuth('login');
-
-  // ⭐ INTENTAR RESTAURAR SESIÓN VÁLIDA DESDE LOCALSTORAGE
-  const saved = localStorage.getItem('tf_user');
-  const accessToken = localStorage.getItem('tf_access_token');
-
-  if (saved && accessToken) {
+  // Restaurar sesión guardada
+  const saved=localStorage.getItem('tf_user');
+  if(saved){
+    const savedUser = JSON.parse(saved);
+    ST.user = savedUser;   // Restaurar inmediatamente sin esperar BD
+    updateUserUI(ST.user);
+    document.getElementById('auth-overlay').style.display='none';
+    // Intentar actualizar perfil desde BD en segundo plano
     try {
-      const savedUser = JSON.parse(saved);
-
-      // ⭐ VALIDAR TOKEN EN LA API
-      const res = await fetch(BASE_URL + '/api/ping', {
-        method: 'GET',
-        headers: { 'Authorization': 'Bearer ' + accessToken }
-      });
-
-      if (res.ok) {
-        // ✅ TOKEN VÁLIDO - Restaurar sesión
-        console.log('[init] ✅ Token válido, restaurando sesión...');
-        ST.user = savedUser;
+      const profiles = await API.get('/api/perfiles');
+      ST.profiles = profiles;
+      const match = profiles.find(p => p.id === savedUser.id);
+      if(match){
+        ST.user = {...match, email: savedUser.email};
+        localStorage.setItem('tf_user', JSON.stringify(ST.user));
         updateUserUI(ST.user);
-        authOverlay.style.display = 'none';
-
-        // Cargar preferencias
-        await loadPrefs();
-
-        // Intentar actualizar perfil desde BD
-        try {
-          const profiles = await API.get('/api/perfiles');
-          ST.profiles = profiles;
-          const match = profiles.find(p => p.id === savedUser.id);
-          if (match) {
-            ST.user = { ...match, email: savedUser.email };
-            localStorage.setItem('tf_user', JSON.stringify(ST.user));
-            updateUserUI(ST.user);
-          }
-          console.log('[init] Cargando todos los datos desde BD...');
-          await loadAll();
-          console.log('[init] ✅ Datos cargados. ST.logs:', ST.logs);
-        } catch (ex) {
-          console.warn('[init] BD no disponible, usando datos cacheados', ex.message);
-        }
-
-        // ⭐ RENDERIZAR DESPUÉS DE CARGAR DATOS
-        try {
-          console.log('[init] Renderizando componentes...');
-          renderDash();
-          renderKanban();
-          renderLog();
-          renderRep('week');
-          renderTmrLog();
-          updateTmr();
-          console.log('[init] ✅ Todos los componentes renderizados');
-        } catch (ex) {
-          console.error('[init] Error renderizando:', ex.message);
-        }
-      } else {
-        // ❌ TOKEN INVÁLIDO - Mostrar login
-        console.warn('[init] ❌ Token inválido, mostrando login');
-        doLogout();
       }
-    } catch (ex) {
-      console.warn('[init] Error validando token:', ex.message);
-      doLogout();
-    }
-  } else {
-    // ⭐ SIN SESIÓN - RENDERIZAR PÁGINA DE LOGIN
-    try {
-      console.log('[init] Sin sesión guardada, renderizando login');
-      renderDash();
-      renderKanban();
-      renderLog();
-      renderRep('week');
-      renderTmrLog();
-      updateTmr();
-    } catch (ex) {
-      console.log('[init] No se pudo renderizar (usuario no logueado)');
+      await loadAll();
+    } catch(ex){
+      // BD no disponible — sesión local válida, mostrar datos cacheados
+      try{ renderDash(); renderKanban(); renderLog(); } catch(_){}
     }
   }
+
+  renderDash();
+  renderKanban();
+  renderLog();
+  renderRep('week');
+  renderTmrLog();
+  updateTmr();
 })();
 
 /* ══════════════════════════════════════════════
@@ -2287,36 +1343,26 @@ function applyPrefs(p) {
 
 async function loadPrefs() {
   if (!ST.user || !ST.user.id) return;
-  console.log('[loadPrefs] Cargando preferencias para usuario:', ST.user.id);
 
-  // ⭐ CARGAR PRIMERO DE localStorage (INMEDIATO, GARANTIZADO)
+  // Intentar cargar de BD primero
+  try {
+    const p = await API.get('/api/preferencias/'+ST.user.id);
+    applyPrefs(p);
+    return;
+  } catch(e) {
+    console.log('[loadPrefs] BD no disponible, intentando localStorage');
+  }
+
+  // Fallback a localStorage
   try {
     const saved = localStorage.getItem('taskflow_prefs_'+ST.user.id);
     if(saved) {
       const p = JSON.parse(saved);
       applyPrefs(p);
-      console.log('[loadPrefs] ✅ Preferencias cargadas desde localStorage:', p);
-
-      // Forzar recalc del asistente
-      setTimeout(() => {
-        const burbuja = document.getElementById('va-burbuja');
-        if(burbuja) {
-          burbuja.style.fontSize = window.getComputedStyle(document.body).fontSize;
-        }
-      }, 50);
+      console.log('[loadPrefs] Preferencias cargadas desde localStorage');
     }
   } catch(e) {
-    console.error('[loadPrefs] Error cargando localStorage:', e.message);
-  }
-
-  // Luego intentar actualizar desde BD (sin bloquear)
-  try {
-    const p = await API.get('/api/preferencias/'+ST.user.id);
-    console.log('[loadPrefs] ✅ Preferencias cargadas desde BD:', p);
-    applyPrefs(p);
-    localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(p));
-  } catch(e) {
-    console.log('[loadPrefs] BD no disponible, usando localStorage:', e.message);
+    console.log('[loadPrefs] Error cargando localStorage:', e.message);
   }
 }
 
@@ -2324,25 +1370,19 @@ async function savePrefs(changes) {
   Object.assign(PREFS, changes);
   applyPrefs(PREFS);
 
-  // ⭐ GUARDAR INMEDIATAMENTE EN localStorage PRIMERO (garantizado)
-  if(ST.user && ST.user.id) {
-    try {
-      localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(PREFS));
-      console.log('[savePrefs] ✅ Guardadas en localStorage:', PREFS);
-    } catch(e) {
-      console.error('[savePrefs] Error guardando en localStorage:', e.message);
-    }
-  }
+  // Guardar en localStorage como fallback
+  try {
+    localStorage.setItem('taskflow_prefs_'+ST.user.id, JSON.stringify(PREFS));
+  } catch(e) { /* localStorage lleno o desactivado */ }
 
-  // Intentar guardar en BD (async, no bloquea)
   if (!ST.user || !ST.user.id) return;
   try {
     await API.put('/api/preferencias/'+ST.user.id, PREFS);
-    console.log('[savePrefs] ✅ Guardadas en BD');
     toast('✓ Preferencias guardadas','s');
   } catch(e) {
-    console.log('[savePrefs] BD no disponible, usando localStorage:', e.message);
-    toast('Guardado localmente','i');
+    // Silenciar el error y usar localStorage
+    console.log('[savePrefs] BD no disponible, usando localStorage');
+    toast('Preferencias guardadas localmente','i');
   }
 }
 
@@ -2653,4 +1693,239 @@ document.addEventListener('keydown', function(e) {
       e.preventDefault();
       closeAllModals();
       // Cerrar chat si está abierto
-      const chatPan
+      const chatPanel = document.getElementById('chat-panel');
+      if (chatPanel?.classList.contains('open')) {
+        toggleChat();
+      }
+      // Cerrar asistente virtual si está abierto
+      const vaChat = document.getElementById('va-chat');
+      if (vaChat?.classList.contains('va-open') && asistente) {
+        asistente.cerrar();
+      }
+      break;
+      
+    case 'g':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+G: Ir a Kanban
+        nav(document.querySelector('[data-page=kanban]'), 'kanban');
+      }
+      break;
+      
+    case 'd':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+D: Ir a Dashboard
+        nav(document.querySelector('[data-page=dashboard]'), 'dashboard');
+      }
+      break;
+      
+    case 'n':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+N: Nueva tarea
+        openNewTask('todo');
+      }
+      break;
+      
+    case 'h':
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // Ctrl+H: Abrir asistente virtual
+        if (asistente) {
+          asistente.abrir();
+        }
+      }
+      break;
+      
+    case '?':
+      // Mostrar ayuda de atajos
+      showKeyboardShortcutsHelp();
+      break;
+  }
+});
+
+// Cerrar todos los modales abiertos
+function closeAllModals() {
+  document.querySelectorAll('.modal-over.open').forEach(m => m.classList.remove('open'));
+  // También cerrar notificaciones si están abiertas
+  const notifDropdown = document.getElementById('notif-dropdown');
+  if (notifDropdown) notifDropdown.style.display = 'none';
+}
+
+// Mostrar ayuda de atajos de teclado
+function showKeyboardShortcutsHelp() {
+  const shortcuts = [
+    { key: 'Tab', desc: 'Navegar entre elementos' },
+    { key: 'Shift + Tab', desc: 'Navegar hacia atrás' },
+    { key: 'Enter / Space', desc: 'Activar botón/enlace' },
+    { key: 'Escape', desc: 'Cerrar ventanas/modales' },
+    { key: '← →', desc: 'Mover tarea en Kanban' },
+    { key: 'Ctrl + G', desc: 'Ir a Kanban' },
+    { key: 'Ctrl + D', desc: 'Ir a Dashboard' },
+    { key: 'Ctrl + k', desc: 'Nueva tarea' },
+    { key: 'Ctrl + H', desc: 'Abrir asistente virtual' },
+    { key: 'Delete', desc: 'Eliminar tarea seleccionada' },
+    { key: 'Escape', desc: 'Cerrar ventanas/modales' },
+    { key: '?', desc: 'Mostrar esta ayuda' }
+  ];
+  
+  const helpHtml = `
+    <div class="modal-over open" id="m-shortcuts" onclick="if(event.target===this)closeM('m-shortcuts')">
+      <div class="modal" style="max-width:500px">
+        <div class="modal-hdr">
+          <h3>⌨️ Atajos de Teclado</h3>
+          <button class="modal-x" onclick="closeM('m-shortcuts')">✕</button>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Tecla</th><th>Acción</th></tr></thead>
+          <tbody>
+            ${shortcuts.map(s => `
+              <tr>
+                <td style="font-family:var(--mono);font-size:.75rem;font-weight:700;padding:8px 12px">
+                  <kbd style="background:var(--s2);padding:2px 6px;border-radius:4px;border:1px solid var(--bdr)">${s.key}</kbd>
+                </td>
+                <td style="font-size:.8rem;padding:8px 12px">${s.desc}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:.7rem;color:var(--t2);margin-top:12px;text-align:center">
+          Presiona <kbd style="background:var(--s2);padding:1px 5px;border-radius:3px">?</kbd> en cualquier momento para ver esta ayuda
+        </p>
+      </div>
+    </div>
+  `;
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNCIONES PARA VER TODAS LAS NOTIFICACIONES - TAREA VALERIA
+// ═══════════════════════════════════════════════════════════════════
+
+async function verTodasNotificaciones() {
+  if (!ST.user || !ST.user.id) {
+    toast('Inicia sesión para ver notificaciones', 'e');
+    return;
+  }
+
+  const container = document.getElementById('notif-full-list');
+  if (!container) {
+    console.error('No se encontró el contenedor notif-full-list');
+    return;
+  }
+
+  container.innerHTML = '<div style="text-align: center; padding: 30px;">📡 Cargando notificaciones...</div>';
+  openM('m-notificaciones');
+
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+
+    if (!notificaciones || notificaciones.length === 0) {
+      container.innerHTML = '<div style="text-align: center; padding: 40px; color: gray;">✨ No hay notificaciones por ahora</div>';
+      return;
+    }
+
+    container.innerHTML = notificaciones.map(n => `
+      <div style="padding: 14px 12px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 12px; align-items: flex-start; background: ${!n.is_read ? '#eef4ff' : 'transparent'};">
+        <div style="font-size: 1.3rem;">${n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '📌'}</div>
+        <div style="flex: 1;">
+          <div style="font-size: 0.85rem; color: #1a1a1a;">${n.message}</div>
+          <div style="font-size: 0.65rem; color: #888; margin-top: 5px;">
+            ${formatFechaRelativa(n.created_at)}
+            ${n.sender_name ? ` · Por: ${n.sender_name}` : ''}
+          </div>
+        </div>
+        ${!n.is_read ? `
+          <button class="btn btn-g btn-xs" onclick="marcarUnaNotificacionLeida('${n.id}')" style="padding: 4px 10px;">
+            Marcar leída
+          </button>
+        ` : '<span style="font-size: 0.6rem; color: green;">✓ Leída</span>'}
+      </div>
+    `).join('');
+
+  } catch (error) {
+    console.error('Error:', error);
+    container.innerHTML = '<div style="text-align: center; padding: 30px; color: red;">❌ Error al cargar notificaciones</div>';
+  }
+}
+
+function formatFechaRelativa(isoDate) {
+  if (!isoDate) return 'fecha desconocida';
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMins = Math.floor((now - date) / 60000);
+  
+  if (diffMins < 1) return 'ahora mismo';
+  if (diffMins < 60) return `hace ${diffMins} min`;
+  if (diffMins < 1440) return `hace ${Math.floor(diffMins / 60)} horas`;
+  return `hace ${Math.floor(diffMins / 1440)} días`;
+}
+
+async function marcarUnaNotificacionLeida(notifId) {
+  try {
+    await fetch(BASE_URL + '/api/notificaciones/' + notifId + '/leer', {
+      method: 'PATCH',
+      headers: getAuthHeaders()
+    });
+    
+    await actualizarBadgeNotificaciones();
+    await verTodasNotificaciones();
+    toast('Notificación marcada como leída', 's');
+  } catch (error) {
+    console.error('Error:', error);
+    toast('Error al marcar', 'e');
+  }
+}
+
+async function marcarTodasNotificacionesLeidas() {
+  if (!ST.user || !ST.user.id) return;
+  
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+    const noLeidas = notificaciones.filter(n => !n.is_read);
+    
+    for (const n of noLeidas) {
+      await fetch(BASE_URL + '/api/notificaciones/' + n.id + '/leer', {
+        method: 'PATCH',
+        headers: getAuthHeaders()
+      });
+    }
+    
+    await verTodasNotificaciones();
+    await actualizarBadgeNotificaciones();
+    toast(`✓ ${noLeidas.length} notificaciones marcadas como leídas`, 's');
+  } catch (error) {
+    console.error('Error:', error);
+    toast('Error al marcar todas', 'e');
+  }
+}
+
+async function actualizarBadgeNotificaciones() {
+  if (!ST.user || !ST.user.id) return;
+  
+  try {
+    const response = await fetch(BASE_URL + '/api/notificaciones/' + ST.user.id, {
+      headers: getAuthHeaders()
+    });
+    const notificaciones = await response.json();
+    const noLeidas = notificaciones.filter(n => !n.is_read).length;
+    const badge = document.getElementById('notif-badge');
+    if (badge) {
+      badge.textContent = noLeidas;
+      badge.style.display = noLeidas > 0 ? 'flex' : 'none';
+    }
+  } catch (error) {
+    console.warn('No se pudo actualizar badge:', error);
+  }
+}
+
+// Eliminar ayuda anterior si existe
+document.getElementById('m-shortcuts')?.remove();
+document.body.insertAdjacentHTML('beforeend', helpHtml);
+
+}
